@@ -1,0 +1,35 @@
+# Build
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# 本地配置与秘密信息（绝不提交）
+.env
+.env.*
+!.env.example
+config/application-local.yml
+config/*.local.yml
+
+# JVM 临时文件
+.attach_pid*
+hs_err_pid*.log
+
+# 运行时数据
+logs/
+data/
+storage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 本地构建缓存（Maven/JDK/临时 MySQL 等）
+.cache/
+.localrun/

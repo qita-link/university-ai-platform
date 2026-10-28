@@ -1,0 +1,210 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: var(--radius);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--paper);
+  /* 极淡的纸纹：SVG 噪点，不依赖图片资源 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-ui);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+p,
+li,
+blockquote {
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--teal);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+code,
+kbd,
+samp,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+::selection {
+  background: var(--teal);
+  color: var(--paper);
+}
+
+/* 键盘焦点：始终可见，深青细框 */
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+/* 阅读排版：思源宋体 18/1.7 */
+.prose {
+  font-family: var(--font-serif);
+  font-size: var(--fs-read);
+  line-height: var(--lh-read);
+  max-width: var(--measure);
+  hanging-punctuation: first;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose pre,
+.prose table {
+  margin: 0 0 0.9em;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  margin: 1.6em 0 0.6em;
+}
+
+.prose h1 {
+  font-size: 1.6em;
+}
+
+.prose h2 {
+  font-size: 1.3em;
+}
+
+.prose h3 {
+  font-size: 1.1em;
+}
+
+.prose blockquote {
+  padding-left: 1em;
+  border-left: 1px solid var(--rule-strong);
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.prose pre {
+  overflow-x: auto;
+  padding: var(--s-3);
+  background: var(--paper-deep);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.prose :not(pre) > code {
+  padding: 0 0.25em;
+  background: var(--paper-deep);
+}
+
+.prose table {
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: var(--fs-ui);
+}
+
+.prose th,
+.prose td {
+  padding: var(--s-1) var(--s-2);
+  border-bottom: var(--hairline);
+  text-align: left;
+}
+
+.prose hr {
+  border: 0;
+  border-top: var(--hairline);
+  margin: 2em 0;
+}
+
+/* 小型大写标签：用于“问”“答”“注”等页边标记 */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink-2);
+}
+
+.latin-italic {
+  font-family: var(--font-latin-italic);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.fade-in {
+  animation: fade-in var(--t-slow) var(--ease) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}

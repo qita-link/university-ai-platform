@@ -1,0 +1,80 @@
+/*
+ * 设计 token —— 温暖人文 · 书卷气。
+ * 所有灰都带暖调；状态色从深青、赭石用 oklch 派生，不另起色相。
+ * 对比度（相对 --paper / --paper-deep）：ink 14.8/12.8，ink-2 5.4/4.67，teal 8.1/7.0，ochre 5.07/4.39。
+ * 赭红在 --paper-deep 上不足 4.5，表头等深底上不要用赭红小字。
+ */
+:root {
+  color-scheme: light;
+
+  /* 纸与墨 */
+  --paper: #f1ecde;
+  --paper-deep: #e6dcc4;
+  --paper-lift: #f7f3e9; /* 输入框、悬浮层：比纸面略亮一点，同一暖调 */
+  --ink: #1a1a18;
+  --ink-2: #655f4d; /* 次要文字（原 #736D5A 不达 AA，已修正） */
+  --rule: #c8bea4;
+  --rule-strong: #a99e80;
+
+  /* 烫印色 */
+  --teal: #1b4b5a;
+  --teal-press: oklch(0.33 0.057 222);
+  --teal-tint: oklch(0.9 0.02 222);
+  --ochre: #a04a2a;
+  --ochre-tint: oklch(0.9 0.043 40);
+  --gold: oklch(0.66 0.1 80);
+
+  /* 状态色（派生） */
+  --success: oklch(0.407 0.057 172); /* ≈ #255446，深青转绿 */
+  --warning: oklch(0.513 0.111 65); /* ≈ #91570B，赭石转琥珀 */
+  --danger: var(--ochre);
+
+  /* 字体 */
+  --font-serif: 'EB Garamond', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  --font-serif-cjk: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', serif;
+  --font-latin-italic: 'EB Garamond', 'Noto Serif SC', serif;
+  --font-sans: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  /* 字号 */
+  --fs-ui: 14px;
+  --fs-ui-lg: 15px;
+  --fs-small: 12px;
+  --fs-read: 18px;
+  --lh-read: 1.7;
+  --fs-h3: 22px;
+  --fs-h2: clamp(28px, 2.2vw + 12px, 36px);
+  --fs-h1: clamp(44px, 4.5vw + 12px, 88px);
+
+  /* 间距 4 / 8 / 16 / 24 / 32 / 48 / 96 */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+  --s-7: 96px;
+
+  /* 形状与层级：零圆角；阴影只给“实物” */
+  --radius: 0;
+  --shadow-object: 0 24px 48px rgba(0, 0, 0, 0.18);
+  --hairline: 1px solid var(--rule);
+
+  /* 动效 */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 200ms;
+  --t-mid: 300ms;
+  --t-slow: 400ms;
+
+  /* 版心 */
+  --measure: 648px; /* 阅读区正文行宽：18px × 36 字 */
+  --masthead-h: 56px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-mid: 0ms;
+    --t-slow: 0ms;
+  }
+}

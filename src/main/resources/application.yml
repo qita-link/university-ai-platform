@@ -1,0 +1,186 @@
+# =====================================================================
+# 高校 AI 综合服务平台 - 主配置
+# 敏感信息（数据库密码、JWT 密钥、模型 API Key）一律通过环境变量
+# 或未纳入 Git 的 config/application-local.yml 提供，见 .env.example。
+# =====================================================================
+spring:
+  application:
+    name: campus-ai-platform
+  config:
+    # 本地开发配置（已加入 .gitignore），不存在时忽略
+    import: optional:file:./config/application-local.yml
+
+  datasource:
+    # 不使用 useSSL=false / allowPublicKeyRetrieval=true：MySQL 8 默认启用 TLS，驱动默认 sslMode=PREFERRED
+    url: ${DB_URL:jdbc:mysql://localhost:3306/campus_ai?characterEncoding=UTF-8}
+    username: ${DB_USERNAME:campus}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: 2
+      connection-timeout: 10000
+      max-lifetime: 1800000
+      # 会话时区与业务时区一致，使数据库端 CURRENT_TIMESTAMP 默认值与应用写入的 LocalDateTime 同一口径。
+      # 使用偏移量而非时区名，避免 MySQL 未加载时区表（Windows 常见）时报错。
+      connection-init-sql: "SET time_zone = '${DB_SESSION_TIME_ZONE:+08:00}'"
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # 生产环境严禁 clean
+    clean-disabled: true
+    validate-on-migrate: true
+
+  servlet:
+    multipart:
+      # Markdown 批量上传的全局上限；单文件/数量等业务限制由知识库模块再校验
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:2MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:20MB}
+
+  jackson:
+    time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  http:
+    client:
+      # 作用于自动配置的 RestClient.Builder（Spring AI 的模型调用使用该 Builder）
+      connect-timeout: ${AI_CONNECT_TIMEOUT:10s}
+      read-timeout: ${AI_READ_TIMEOUT:60s}
+
+  ai:
+    model:
+      # 聊天模型提供方：none（不启用）或 openai（OpenAI 兼容协议，可对接 DeepSeek/通义/Ollama 等）
+      chat: ${AI_CHAT_PROVIDER:none}
+      # Embedding 在阶段四接入 Qdrant 时启用
+      embedding: ${AI_EMBEDDING_PROVIDER:none}
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+    openai:
+      base-url: ${AI_BASE_URL:https://api.openai.com}
+      api-key: ${AI_API_KEY:}
+      chat:
+        options:
+          model: ${AI_CHAT_MODEL:gpt-4o-mini}
+          temperature: ${AI_TEMPERATURE:0.2}
+          max-tokens: ${AI_MAX_OUTPUT_TOKENS:1024}
+    retry:
+      # Spring AI 默认重试 10 次，过多，会放大延迟和费用
+      max-attempts: ${AI_RETRY_MAX_ATTEMPTS:2}
+      backoff:
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 5s
+
+server:
+  port: ${SERVER_PORT:8080}
+  # 部署在反向代理之后时设为 native/framework，以便获取真实客户端 IP
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+
+springdoc:
+  api-docs:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${APP_SWAGGER_ENABLED:true}
+    persist-authorization: true
+  default-produces-media-type: application/json
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+  security:
+    jwt:
+      # 至少 32 字节的随机字符串，例如：openssl rand -base64 48
+      secret: ${APP_JWT_SECRET:}
+      issuer: ${APP_JWT_ISSUER:campus-ai-platform}
+      access-token-ttl: ${APP_JWT_ACCESS_TTL:2h}
+    cors:
+      # 逗号分隔，例如 http://localhost:5173；为空表示不开放跨域
+      allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+    login:
+      # 连续失败多少次后临时锁定，以及锁定时长
+      max-failed-attempts: ${APP_LOGIN_MAX_FAILED_ATTEMPTS:5}
+      lock-duration: ${APP_LOGIN_LOCK_DURATION:15m}
+      rate-limit:
+        # 进程内令牌桶限流（单实例有效；多实例部署时每个实例单独计数）
+        enabled: ${APP_LOGIN_RATE_LIMIT_ENABLED:true}
+        per-ip-and-username:
+          capacity: ${APP_LOGIN_RATE_PER_IP_USER:10}
+          period: 1m
+        per-ip:
+          capacity: ${APP_LOGIN_RATE_PER_IP:60}
+          period: 1m
+        max-tracked-keys: 100000
+    password:
+      min-length: ${APP_PASSWORD_MIN_LENGTH:8}
+      # 小写字母、大写字母、数字、符号中至少几类
+      min-character-classes: 3
+  logging:
+    path: ${APP_LOG_PATH:./logs}
+  knowledge:
+    max-chunk-chars: ${APP_KB_MAX_CHUNK_CHARS:800}
+    chunk-overlap-chars: ${APP_KB_CHUNK_OVERLAP_CHARS:120}
+    max-file-bytes: ${APP_KB_MAX_FILE_BYTES:2097152}
+    max-files-per-batch: ${APP_KB_MAX_FILES_PER_BATCH:20}
+    import:
+      # 仅开发/演示：启动时把本地 Markdown 目录导入知识库；生产保持 false
+      enabled: ${APP_KB_IMPORT_ENABLED:false}
+      dir: ${APP_KB_IMPORT_DIR:}
+      category-name: ${APP_KB_IMPORT_CATEGORY:SJTU Wiki}
+      space-name: ${APP_KB_IMPORT_SPACE:SJTU Wiki}
+      owner-username: ${APP_KB_IMPORT_OWNER:admin}
+  retrieval:
+    default-top-k: ${APP_SEARCH_TOP_K:5}
+    max-top-k: ${APP_SEARCH_MAX_TOP_K:20}
+    min-score: ${APP_SEARCH_MIN_SCORE:0.0}
+    candidate-factor: ${APP_SEARCH_CANDIDATE_FACTOR:4}
+    snippet-chars: ${APP_SEARCH_SNIPPET_CHARS:300}
+  ai:
+    top-k: ${APP_AI_TOP_K:5}
+    max-context-tokens: ${APP_AI_MAX_CONTEXT_TOKENS:3000}
+    max-answer-tokens: ${APP_AI_MAX_ANSWER_TOKENS:800}
+    temperature: ${APP_AI_TEMPERATURE:0.2}
+    history-messages: ${APP_AI_HISTORY_MESSAGES:6}
+    tool:
+      # 写操作工具生成的待确认记录有效期；超时后确认返回 409，需要重新发起
+      confirm-ttl: ${APP_AI_TOOL_CONFIRM_TTL:10m}
+  bootstrap:
+    admin:
+      # 仅当系统中不存在可用管理员时生效；首次启动后应移除密码环境变量
+      username: ${APP_BOOTSTRAP_ADMIN_USERNAME:admin}
+      password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
+      display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:系统管理员}
+
+logging:
+  level:
+    root: INFO
+    # 保持 INFO：MyBatis 在 DEBUG 级别会输出 SQL 参数（可能含个人信息），排查问题时再临时调整具体 Mapper 的级别
+    com.campus.platform: INFO

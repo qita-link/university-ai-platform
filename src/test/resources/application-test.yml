@@ -1,0 +1,49 @@
+# 测试配置：连接真实 MySQL 8（默认 localhost:3306/campus_ai_test），可通过环境变量覆盖。
+# 每次测试运行前由 Flyway 执行全部迁移（测试环境允许 clean，用于保证可重复初始化）。
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/campus_ai_test?characterEncoding=UTF-8}
+    username: ${TEST_DB_USERNAME:campus}
+    password: ${TEST_DB_PASSWORD:campus_dev_pwd}
+  flyway:
+    clean-disabled: false
+  ai:
+    model:
+      chat: none
+      embedding: none
+
+app:
+  security:
+    jwt:
+      # 仅用于自动化测试的固定密钥，不得用于任何部署环境
+      secret: test-only-secret-0123456789-abcdefghijklmnopqrstuvwxyz
+      issuer: campus-ai-platform-test
+    login:
+      max-failed-attempts: 5
+      lock-duration: 15m
+      rate-limit:
+        # MockMvc 的请求都来自 127.0.0.1，放宽“按 IP”桶，避免测试之间互相影响；
+        # 限流测试通过设置不同的 remoteAddr 单独验证
+        per-ip:
+          capacity: 10000
+          period: 1m
+        per-ip-and-username:
+          capacity: 10
+          period: 1m
+  bootstrap:
+    admin:
+      username: it_admin
+      password: it-admin-password-0001
+  knowledge:
+    max-chunk-chars: 200
+    chunk-overlap-chars: 30
+    max-file-bytes: 1048576
+    max-files-per-batch: 20
+    import:
+      enabled: false
+  logging:
+    path: ./target/test-logs
+
+logging:
+  level:
+    com.campus.platform: INFO
