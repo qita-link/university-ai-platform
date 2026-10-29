@@ -10,7 +10,7 @@
 |---|---|---|
 | Debian | 12 (bookworm) | glibc 2.36，满足 OR-Tools 原生库要求 |
 | OpenJDK | 17（`openjdk-17-jdk-headless`） | 打包产物是 jar，运行只需 JRE |
-| MySQL | 8.0.x 或 8.4 LTS | **不能用 MariaDB**，见 [3.1](#31-为什么必须是-mysql-8-而不是-debian-自带的-mariadb) |
+| MySQL | 8.0.x 或 8.4 LTS | **不能用 MariaDB**，见 [3.1](#31-为什么必须是-mysql-8而不是-debian-自带的-mariadb) |
 | Maven | 3.9.x（构建用） | 只在构建机需要，运行机可不装 |
 | Node.js | 22.x（构建用） | `frontend/package.json` 要求 `>=22.12.0` |
 | Nginx | 1.22（Debian 源） | 静态站 + 反向代理 |
@@ -173,7 +173,7 @@ long_query_time     = 2
 ```bash
 sudo systemctl restart mysql
 
-# 校验：两个值必须正确，否则中文检索会“查得到但没结果”
+# 校验：ngram 与字符集必须正确，否则中文检索会“查得到但没结果”
 sudo mysql -u root -p -e "SELECT @@version, @@ngram_token_size, @@character_set_server, @@collation_server, @@time_zone;"
 ```
 
@@ -356,15 +356,16 @@ sudo chmod 640 /etc/campus-ai/env
 
 ### 7.2 先在前台试跑一次
 
-```bash
-cd /opt/campus-ai
-sudo -u campus env $(sudo grep -v '^#' /etc/campus-ai/env | xargs) \
-  java -Xms512m -Xmx1536m -Duser.timezone=Asia/Shanghai \
-  -jar /opt/campus-ai/app.jar --server.port=8080
-```
+用 systemd 将来会用的同一套环境变量，以 `campus` 身份跑一次（密码里有 `$`、空格也不会出问题）：
 
-> 上面这种 `env $(...)` 写法仅用于临时验证；正式运行用 systemd 的 `EnvironmentFile`（下一步）。
-> 若密码里有空格或 `$`，别用这行，直接改用 systemd 启动。
+```bash
+sudo bash -c '
+  set -a; . /etc/campus-ai/env; set +a
+  exec runuser -u campus -- /usr/bin/java -Xms512m -Xmx1536m \
+    -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8 \
+    -jar /opt/campus-ai/app.jar --server.port=8080
+'
+```
 
 看到 `Started CampusAiApplication in xx seconds` 即成功。另开一个终端冒烟：
 
