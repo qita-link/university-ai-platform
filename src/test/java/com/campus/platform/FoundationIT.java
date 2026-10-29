@@ -62,7 +62,8 @@ class FoundationIT extends IntegrationTestBase {
     @Test
     void migrationSeedsBuiltInRolesAndPermissions() {
         List<String> roles = jdbc.queryForList("SELECT code FROM sys_role ORDER BY code", String.class);
-        assertThat(roles).containsExactly("ADMIN", "STUDENT", "TEACHER");
+        // V8 新增排课模块的教务员角色
+        assertThat(roles).containsExactly("ACADEMIC_ADMIN", "ADMIN", "STUDENT", "TEACHER");
 
         Integer adminPerms = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM sys_role_permission rp JOIN sys_role r ON r.id = rp.role_id WHERE r.code='ADMIN'

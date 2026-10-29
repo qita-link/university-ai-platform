@@ -11,8 +11,21 @@ import { linkCitations, mentionedRanks } from '@/lib/citations'
  * - 依据不足（NO_EVIDENCE）时以斜体“编者按”呈现，不显示引用、不伪装成答案。
  * - 失败（FAILED）时说明原因，不渲染任何正文。
  */
-const props = defineProps<{ item: ChatItem }>()
-const emit = defineEmits<{ reveal: [el: HTMLElement] }>()
+const props = withDefaults(
+  defineProps<{
+    item: ChatItem
+    /** 页边是否就地渲染旁注；为 false 时旁注由右侧「引用资料」栏统一展示 */
+    showNotes?: boolean
+    /** 外部（引用资料栏）指定的高亮序号，用于反向点亮正文角标 */
+    highlight?: number | null
+  }>(),
+  { showNotes: true, highlight: null },
+)
+const emit = defineEmits<{
+  reveal: [el: HTMLElement]
+  cite: [rank: number]
+  citeHover: [rank: number | null]
+}>()
 
 const prefix = computed(() => `cite-${props.item.key}`)
 const active = ref<number | null>(null)
@@ -26,6 +39,14 @@ watch(active, (r) => {
   })
 })
 
+// 由引用资料栏悬停驱动：外部序号变化时同步正文高亮
+watch(
+  () => props.highlight,
+  (r) => {
+    active.value = r ?? null
+  },
+)
+
 const ranks = computed(() => new Set(props.item.citations.map((c) => c.rankNo)))
 const mentioned = computed(() => mentionedRanks(props.item.content))
 const html = computed(() => linkCitations(renderMarkdown(props.item.content), ranks.value, prefix.value))
@@ -37,11 +58,17 @@ function rankFromEvent(e: Event): number | null {
 
 function onOver(e: MouseEvent) {
   const r = rankFromEvent(e)
-  if (r !== null) active.value = r
+  if (r !== null) {
+    active.value = r
+    emit('citeHover', r)
+  }
 }
 
 function onOut(e: MouseEvent) {
-  if (rankFromEvent(e) !== null) active.value = null
+  if (rankFromEvent(e) !== null) {
+    active.value = null
+    emit('citeHover', null)
+  }
 }
 
 function onClick(e: MouseEvent) {
@@ -49,6 +76,7 @@ function onClick(e: MouseEvent) {
   if (r === null) return
   e.preventDefault()
   active.value = r
+  emit('cite', r)
   const note = notesEl.value?.querySelector<HTMLElement>(`#${CSS.escape(`${prefix.value}-${r}`)}`)
   if (note) {
     emit('reveal', note)
@@ -116,7 +144,12 @@ const metaLine = computed(() => {
       <p v-if="metaLine && item.status !== 'PENDING'" class="answer__meta mono">{{ metaLine }}</p>
     </div>
 
-    <div v-if="item.status === 'SUCCESS' && item.citations.length" ref="notesEl" class="answer__notes" aria-label="引用出处">
+    <div
+      v-if="showNotes && item.status === 'SUCCESS' && item.citations.length"
+      ref="notesEl"
+      class="answer__notes"
+      aria-label="引用出处"
+    >
       <MarginNote
         v-for="c in item.citations"
         :key="c.chunkId + '-' + c.rankNo"
@@ -133,8 +166,8 @@ const metaLine = computed(() => {
 <style scoped>
 .answer {
   display: grid;
-  grid-template-columns: minmax(0, var(--measure)) minmax(200px, 264px);
-  column-gap: var(--s-6);
+  grid-template-columns: minmax(0, var(--measure)) minmax(176px, 260px);
+  column-gap: clamp(24px, 2.6vw, 44px);
   align-items: start;
 }
 
@@ -191,10 +224,17 @@ const metaLine = computed(() => {
   color: var(--ink-2);
 }
 
+/* 右侧引用栏：独立成栏，与正文用一道竖线分开 */
 .answer__notes {
   display: grid;
   gap: 0;
-  padding-top: 4px;
+  align-content: start;
+  padding: 4px 0 0 var(--s-3);
+  border-left: 1px solid var(--rule);
+}
+
+.answer__notes > :first-child {
+  border-top-color: var(--ink);
 }
 
 /* 编者按：斜体、居中缩进、上下细线，明确区别于正文 */
@@ -288,14 +328,15 @@ const metaLine = computed(() => {
   user-select: all;
 }
 
-@container reading (max-width: 860px) {
+@container reading (max-width: 780px) {
   .answer {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .answer__notes {
     margin-top: var(--s-4);
-    padding-left: var(--s-3);
+    padding-left: 0;
+    border-left: 0;
   }
 
   .answer__label {

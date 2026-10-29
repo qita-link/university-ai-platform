@@ -172,6 +172,10 @@ app:
     tool:
       # 写操作工具生成的待确认记录有效期；超时后确认返回 409，需要重新发起
       confirm-ttl: ${APP_AI_TOOL_CONFIRM_TTL:10m}
+  scheduling:
+    # 求解线程池：同时执行的 CP-SAT 求解任务数上限；队列满时启动接口返回 503
+    solver-threads: ${APP_SCHEDULING_SOLVER_THREADS:2}
+    queue-capacity: ${APP_SCHEDULING_QUEUE_CAPACITY:8}
   bootstrap:
     admin:
       # 仅当系统中不存在可用管理员时生效；首次启动后应移除密码环境变量

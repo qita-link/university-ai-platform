@@ -36,6 +36,24 @@ md.renderer.rules.heading_open = (tokens, idx, options, _env, self) => {
   return self.renderToken(tokens, idx, options)
 }
 
+/**
+ * 图片：文档站里的相对路径（image/x.png）在应用里没有意义，
+ * 用调用方给的 assetBase 拼成站内绝对路径，否则净化器会直接删掉 src。
+ */
+const defaultImage =
+  md.renderer.rules.image ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
+
+md.renderer.rules.image = (tokens, idx, options, env, self) => {
+  const token = tokens[idx]!
+  const src = String(token.attrGet('src') ?? '')
+  const base = (env as { assetBase?: string } | undefined)?.assetBase
+  if (base && src && !/^([a-z][a-z0-9+.-]*:|\/|#)/i.test(src)) {
+    const clean = src.replace(/^\.\//, '').replace(/^\/+/, '')
+    token.attrSet('src', (base.endsWith('/') ? base : `${base}/`) + clean)
+  }
+  return defaultImage(tokens, idx, options, env, self)
+}
+
 export function headingId(text: string): string {
   return 'h-' + text.trim().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, 64)
 }
@@ -60,7 +78,10 @@ export function sanitize(html: string): string {
   return DOMPurify.sanitize(html, PURIFY_CONFIG) as unknown as string
 }
 
-export function renderMarkdown(source: string | null | undefined): string {
+export function renderMarkdown(
+  source: string | null | undefined,
+  opts: { assetBase?: string } = {},
+): string {
   if (!source) return ''
-  return sanitize(md.render(source))
+  return sanitize(md.render(source, { assetBase: opts.assetBase }))
 }

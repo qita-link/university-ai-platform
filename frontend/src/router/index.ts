@@ -35,13 +35,70 @@ const routes: RouteRecordRaw[] = [
         path: 'ai/:conversationId(\\d+)?',
         name: 'ai',
         component: () => import('@/views/AiChatView.vue'),
-        meta: { anyOf: ['ai:chat'], title: '问答' },
+        meta: { anyOf: ['ai:chat', 'ai:tool:use'], title: '问答' },
+      },
+      // 旧链接仍可用：办事已并入问答页的视图切换
+      { path: 'act', redirect: { name: 'ai', query: { mode: 'act' } } },
+      {
+        path: 'knowledge',
+        name: 'knowledge',
+        component: () => import('@/views/knowledge/LibraryView.vue'),
+        meta: { anyOf: ['kb:space:read'], title: '知识库' },
+      },
+      {
+        path: 'knowledge/spaces/:id(\\d+)',
+        name: 'space',
+        component: () => import('@/views/knowledge/SpaceView.vue'),
+        meta: { anyOf: ['kb:space:read'], title: '空间' },
       },
       {
         path: 'knowledge/documents/:id(\\d+)',
         name: 'document',
         component: () => import('@/views/DocumentView.vue'),
         meta: { anyOf: ['kb:space:read'], title: '文档' },
+      },
+      {
+        path: 'forum',
+        name: 'forum',
+        component: () => import('@/views/forum/ForumView.vue'),
+        meta: { title: '论坛' },
+      },
+      {
+        path: 'forum/posts/:id(\\d+)',
+        name: 'post',
+        component: () => import('@/views/forum/PostView.vue'),
+        meta: { title: '帖子' },
+      },
+      {
+        path: 'courses',
+        name: 'courses',
+        component: () => import('@/views/course/CourseView.vue'),
+        meta: { anyOf: ['course:read'], title: '课程' },
+      },
+      {
+        path: 'courses/:id(\\d+)',
+        name: 'course',
+        component: () => import('@/views/course/CourseDetailView.vue'),
+        meta: { anyOf: ['course:read'], title: '课程详情' },
+      },
+      {
+        path: 'leave',
+        name: 'leave',
+        component: () => import('@/views/LeaveView.vue'),
+        meta: { anyOf: ['leave:submit', 'leave:review', 'leave:manage_all'], title: '请假' },
+      },
+      {
+        path: 'scheduling',
+        name: 'scheduling',
+        component: () => import('@/views/scheduling/SchedulingView.vue'),
+        // 与 NAV 保持一致：学生没有 schedule:read / schedule:preference:self，直接进不来
+        meta: { anyOf: ['schedule:read', 'schedule:preference:self'], title: '排课' },
+      },
+      {
+        path: 'admin',
+        name: 'admin',
+        component: () => import('@/views/admin/AdminView.vue'),
+        meta: { anyOf: ['user:read', 'role:manage', 'org:manage', 'audit:read'], title: '管理' },
       },
       ...pendingRoutes,
       {

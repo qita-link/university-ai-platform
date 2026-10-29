@@ -39,6 +39,19 @@ public final class Permissions {
     public static final String LEAVE_REVIEW = "leave:review";
     public static final String LEAVE_MANAGE_ALL = "leave:manage_all";
 
+    /** 查看排课基础数据、任务、版本与全部课表 */
+    public static final String SCHEDULE_READ = "schedule:read";
+    /** 维护排课基础数据、执行排课与调整课表 */
+    public static final String SCHEDULE_MANAGE = "schedule:manage";
+    /** 调整课表：移动课时、锁定/解锁、局部重排 */
+    public static final String SCHEDULE_ADJUST = "schedule:adjust";
+    /** 发布/撤销发布课表 */
+    public static final String SCHEDULE_PUBLISH = "schedule:publish";
+    /** 教师维护本人的排课时间偏好 */
+    public static final String SCHEDULE_PREFERENCE_SELF = "schedule:preference:self";
+    /** 查看本人已发布课表（含学生） */
+    public static final String TIMETABLE_READ = "timetable:read";
+
     private Permissions() {
     }
 
@@ -47,5 +60,18 @@ public final class Permissions {
         if (user == null || !user.hasPermission(permission)) {
             throw BusinessException.forbidden();
         }
+    }
+
+    /** 具备任意一个权限点即可通过，否则抛出 FORBIDDEN。 */
+    public static void requireAny(AuthenticatedUser user, String... permissions) {
+        if (user == null) {
+            throw BusinessException.forbidden();
+        }
+        for (String permission : permissions) {
+            if (user.hasPermission(permission)) {
+                return;
+            }
+        }
+        throw BusinessException.forbidden();
     }
 }

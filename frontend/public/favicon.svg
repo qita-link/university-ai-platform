@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="校园 AI 服务平台">
+  <rect width="32" height="32" fill="#f1ecde" />
+  <rect x="6.5" y="5.5" width="19" height="21" fill="none" stroke="#1a1a18" stroke-width="1" />
+  <rect x="10" y="9" width="3" height="14" fill="#1b4b5a" />
+  <path d="M16 12h6M16 16h6M16 20h4" stroke="#1a1a18" stroke-width="1" />
+</svg>

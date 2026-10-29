@@ -1,0 +1,7243 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "高校 AI 综合服务平台 - 自动排课模块 API",
+    "version": "0.1.0",
+    "description": "自动排课模块（/api/v1/scheduling）。认证：Authorization: Bearer <JWT>。\n本文件由运行中的服务 /v3/api-docs 导出，与实际实现一致。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "本地开发"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/scheduling/campuses": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "校区列表",
+        "operationId": "campuses",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingCampusView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "新建校区",
+        "operationId": "createCampus",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCampusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCampusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/campuses/travel": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "校区通行时间",
+        "operationId": "travel",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingCampusTravelView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "设置校区通行时间",
+        "description": "无序对，重复提交会覆盖",
+        "operationId": "putTravel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCampusTravelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingCampusTravelView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/campuses/{campusId}": {
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改校区",
+        "operationId": "updateCampus",
+        "parameters": [
+          {
+            "name": "campusId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCampusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCampusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/classes": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "行政班列表（含排课档案）",
+        "operationId": "classes",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingClassView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/classes/{classId}": {
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改行政班排课档案",
+        "operationId": "putClass",
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingClassProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingClassView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/classes/{classId}/availability": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "行政班禁排/偏好时间",
+        "operationId": "classAvailability",
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "设置行政班禁排/偏好时间",
+        "operationId": "putClassAvailability",
+        "parameters": [
+          {
+            "name": "classId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SchedulingTimeRuleRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/classrooms": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教室列表",
+        "operationId": "rooms",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SchedulingRoomQuery"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResultSchedulingRoomView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "新建教室",
+        "operationId": "createRoom",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingRoomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingRoomView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/classrooms/{classroomId}": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教室详情",
+        "operationId": "room",
+        "parameters": [
+          {
+            "name": "classroomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingRoomView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改教室",
+        "description": "提交 version 时做乐观锁校验",
+        "operationId": "updateRoom",
+        "parameters": [
+          {
+            "name": "classroomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingRoomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingRoomView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/classrooms/{classroomId}/availability": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教室可用时间",
+        "description": "返回该教室在该学期的禁排/回避/偏好规则",
+        "operationId": "roomAvailability",
+        "parameters": [
+          {
+            "name": "classroomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "设置教室可用时间",
+        "description": "按对象整体替换（FORBIDDEN 为维护/不开放，硬约束）",
+        "operationId": "putRoomAvailability",
+        "parameters": [
+          {
+            "name": "classroomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SchedulingTimeRuleRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/courses": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "课程库列表",
+        "operationId": "courses",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingCourseView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "新建课程",
+        "operationId": "createCourse",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCourseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCourseView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/courses/{courseId}": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "课程详情",
+        "operationId": "course",
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCourseView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改课程",
+        "operationId": "updateCourse",
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCourseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCourseView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "停用课程",
+        "description": "不物理删除，避免破坏历史教学任务",
+        "operationId": "disableCourse",
+        "parameters": [
+          {
+            "name": "courseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs": {
+      "get": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "排课任务列表",
+        "operationId": "list_4",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResultSchedulingJobView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "创建排课任务",
+        "description": "不传 taskIds 表示学期内全部启用任务；mode=INCREMENTAL 需指定 baseVersionId",
+        "operationId": "create_4",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingJobCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}": {
+      "get": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "排课任务详情",
+        "operationId": "get_10",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}/cancel": {
+      "post": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "取消排课任务",
+        "description": "排队中或执行中可取消；执行中会中断 CP-SAT 搜索",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobStatusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}/diagnostics": {
+      "get": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "任务诊断",
+        "description": "预检问题、未安排原因与资源紧张度；无解时给出尽量具体的线索",
+        "operationId": "diagnostics",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingDiagnosticsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}/logs": {
+      "get": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "任务日志",
+        "operationId": "logs",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingJobLogView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}/retry": {
+      "post": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "重试排课任务",
+        "description": "复制原任务参数创建新任务（保留历史）",
+        "operationId": "retry",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}/run": {
+      "post": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "启动排课任务",
+        "description": "异步执行，立即返回；同一任务不能重复启动，同一学期同时只允许一个任务",
+        "operationId": "run",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobStatusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/jobs/{jobId}/status": {
+      "get": {
+        "tags": [
+          "排课-求解任务"
+        ],
+        "summary": "任务状态与进度",
+        "operationId": "status",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobStatusView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/publish-records": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "发布记录",
+        "operationId": "publishRecords",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingPublishRecordView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/rules": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "时间规则列表",
+        "operationId": "rules",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "targetType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "新建时间规则",
+        "operationId": "createRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTimeRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/rules/templates": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "规则模板",
+        "description": "午休禁排、晚间不排课、周五下午回避、减少早八等",
+        "operationId": "templates",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListMapStringObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/rules/{id}": {
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改时间规则",
+        "operationId": "updateRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTimeRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "删除时间规则",
+        "operationId": "deleteRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teachers": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教师列表（含排课档案与可授课程）",
+        "operationId": "teachers_1",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTeacherView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teachers/me/preferences": {
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教师本人维护时间偏好",
+        "description": "需要 schedule:preference:self；只能改自己的 AVOID/PREFERRED",
+        "operationId": "myPreferences",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SchedulingTimeRuleRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teachers/{teacherId}": {
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改教师排课档案",
+        "description": "上限为空表示不限制；courseIds 非空时整体替换可授课程",
+        "operationId": "putTeacher",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTeacherProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeacherView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teachers/{teacherId}/availability": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教师不可用/偏好时间",
+        "operationId": "teacherAvailability",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "设置教师可用时间",
+        "description": "FORBIDDEN 为硬约束；AVOID/PREFERRED 为软约束",
+        "operationId": "putTeacherAvailability",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SchedulingTimeRuleRequest"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTimeRuleView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teachers/{teacherId}/workload": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教师工作量统计",
+        "description": "按已发布版本统计每周课次与节数",
+        "operationId": "workload",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeacherWorkloadView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-classes": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教学班列表",
+        "operationId": "teachingClasses",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTeachingClassView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "新建教学班",
+        "description": "fullClass=true 整班参加；false 为选修抽取（studentCount 必填）",
+        "operationId": "createTeachingClass",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTeachingClassRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeachingClassView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-classes/{id}": {
+      "get": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "教学班详情",
+        "operationId": "teachingClass",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeachingClassView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-基础数据"
+        ],
+        "summary": "修改教学班",
+        "operationId": "updateTeachingClass",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTeachingClassRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeachingClassView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-tasks": {
+      "get": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "教学任务列表",
+        "description": "支持按学期、学院、课程、教学班、教师、状态与关键字过滤",
+        "operationId": "list_3",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SchedulingTaskQuery"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResultSchedulingTeachingTaskView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "新建教学任务",
+        "description": "totalHours 为空时按 每周次数×单次节数 估算，预检会校验与周次的一致性",
+        "operationId": "create_3",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTeachingTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeachingTaskView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-tasks/export": {
+      "get": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "导出教学任务 CSV",
+        "description": "UTF-8 BOM，Excel 可直接打开",
+        "operationId": "export_1",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-tasks/import": {
+      "post": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "批量导入教学任务",
+        "description": "CSV：code,courseCode,teachingClassCode,teacherUsernames,startWeek,endWeek,weekParity,sessionsPerWeek,periodsPerSession,totalHours,roomRequired,note（教师用 | 分隔）",
+        "operationId": "importCsv",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "text/plain": {
+              "schema": {
+                "type": "string"
+              }
+            },
+            "text/csv": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-tasks/precheck": {
+      "get": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "预检当前学期的排课输入数据",
+        "operationId": "precheck_1",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "orgUnitId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingPrecheckView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/teaching-tasks/{id}": {
+      "get": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "教学任务详情",
+        "operationId": "get_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeachingTaskView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "修改教学任务",
+        "description": "提交 version 时做乐观锁校验",
+        "operationId": "update_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTeachingTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTeachingTaskView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "排课-教学任务"
+        ],
+        "summary": "删除教学任务",
+        "description": "已出现在课表版本中的任务不能删除，请改为 DISABLED",
+        "operationId": "delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms": {
+      "get": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "学期列表（含排课配置）",
+        "operationId": "list_2",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingTermView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "新建学期并建立排课配置",
+        "description": "复用 semester 表；同时生成默认节次作息（可用 PUT /periods 覆盖）",
+        "operationId": "create_2",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTermCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTermView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms/{semesterId}": {
+      "get": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "学期详情",
+        "operationId": "get_9",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTermView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms/{semesterId}/calendar": {
+      "get": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "教学日历（特殊教学周 + 特殊日期）",
+        "operationId": "calendar",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCalendarView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "整体替换教学日历",
+        "description": "HOLIDAY 节假日、SUSPENDED 临时停课、WORKDAY 调休上课（需 followDayOfWeek）、MAKEUP 补课（需 followDate）",
+        "operationId": "putCalendar",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCalendarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCalendarView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms/{semesterId}/config": {
+      "put": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "修改排课配置",
+        "description": "教学周数、第 1 周周一（必须是周一）、教学日、每日节数",
+        "operationId": "putConfig",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingTermConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTermConfigView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms/{semesterId}/constraints": {
+      "get": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "约束清单与权重",
+        "description": "硬约束不可关闭；软约束可关闭或调整权重",
+        "operationId": "constraints",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingConstraintView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "修改软约束权重",
+        "description": "权重会直接进入 CP-SAT 目标函数",
+        "operationId": "putConstraints",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingConstraintRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingConstraintView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms/{semesterId}/periods": {
+      "get": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "节次作息",
+        "operationId": "periods",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingPeriodView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "整体替换节次作息",
+        "description": "同一作息段（MORNING/AFTERNOON/EVENING）内编号连续才能连堂；开始时间不可重叠",
+        "operationId": "putPeriods",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingPeriodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingPeriodView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/terms/{semesterId}/precheck": {
+      "post": {
+        "tags": [
+          "排课-学期与日历"
+        ],
+        "summary": "排课数据预检",
+        "description": "检查学时一致性、候选为空、工作量超限、教室容量/类型等；ERROR 会阻止求解与发布",
+        "operationId": "precheck",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "orgUnitId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingPrecheckView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/timetables/me": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "本人课表",
+        "description": "教师看自己的已发布课表；学生看所在行政班的已发布课表",
+        "operationId": "myTimetable",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTimetableView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "版本列表",
+        "operationId": "versions",
+        "parameters": [
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingVersionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "版本详情",
+        "operationId": "version",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingVersionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/adjustments": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "调整历史",
+        "operationId": "adjustments",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingAdjustmentView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/check": {
+      "post": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "整体复核并固化结果",
+        "description": "重写问题清单，更新已排课次/硬约束违反数/评分；需要 schedule:adjust",
+        "operationId": "check",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingEvaluationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/compare": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "版本对比",
+        "operationId": "compare",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "otherVersionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingCompareView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/conflicts": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "硬约束冲突列表",
+        "operationId": "conflicts",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingConflictView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/copy": {
+      "post": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "复制版本为新草稿",
+        "description": "不改动原版本（包括已发布版本）",
+        "operationId": "copy",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingCopyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingVersionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/entries": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "课时列表",
+        "description": "可按教师、班级、教室、课程、星期、节次、周次过滤",
+        "operationId": "entries",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "roomId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "courseId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "dayOfWeek",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "week",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingEntryView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/entries/{entryId}": {
+      "put": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "调整单节课",
+        "description": "dayOfWeek 为空表示取消安排；冲突时返回 409 并给出冲突课程",
+        "operationId": "adjust",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingAdjustRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingEntryView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/entries/{entryId}/candidates": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "某节课的可选位置",
+        "description": "已排除与现有课表冲突的组合，最多 300 条",
+        "operationId": "candidates",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingCandidateView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/entries/{entryId}/lock": {
+      "put": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "锁定/解锁课时",
+        "description": "锁定后重新求解（FULL + keepLocked）会保留该位置",
+        "operationId": "lock",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingLockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingEntryView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/evaluation": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "评分明细与冲突（实时复核）",
+        "operationId": "evaluation",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingEvaluationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/export.csv": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "导出课表 CSV",
+        "description": "UTF-8 BOM；可按教师/班级/教室过滤",
+        "operationId": "export",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "roomId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/publish": {
+      "post": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "发布课表",
+        "description": "发布前强制复核硬约束；同学期旧发布版本自动归档",
+        "operationId": "publish",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingPublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingVersionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/reschedule": {
+      "post": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "局部重排",
+        "description": "以该版本为基准，只放开指定任务，其余课时固定；生成新版本",
+        "operationId": "reschedule",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "taskIds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          },
+          {
+            "name": "timeLimitSeconds",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingJobView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/timetable": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "课表视图（星期 × 节次）",
+        "description": "按教师/班级/教室维度组织",
+        "operationId": "timetable",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "teacherId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "classId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "roomId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingTimetableView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/unplaced": {
+      "get": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "未安排课程及原因",
+        "operationId": "unplaced",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSchedulingUnplacedView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scheduling/versions/{versionId}/unpublish": {
+      "post": {
+        "tags": [
+          "排课-课表与发布"
+        ],
+        "summary": "撤销发布",
+        "description": "撤销后该学期没有已发布课表",
+        "operationId": "unpublish",
+        "parameters": [
+          {
+            "name": "versionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulingPublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSchedulingVersionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ApiResponseListMapStringObject": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingAdjustmentView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingAdjustmentView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingCampusTravelView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingCampusTravelView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingCampusView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingCampusView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingCandidateView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingCandidateView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingClassView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingClassView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingConflictView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingConflictView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingConstraintView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingConstraintView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingCourseView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingCourseView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingEntryView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingEntryView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingJobLogView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingJobLogView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingPeriodView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingPeriodView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingPublishRecordView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingPublishRecordView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingTeacherView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTeacherView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingTeachingClassView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTeachingClassView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingTermView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTermView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingTimeRuleView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTimeRuleView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingUnplacedView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingUnplacedView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListSchedulingVersionView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingVersionView"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponsePageResultSchedulingJobView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultSchedulingJobView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponsePageResultSchedulingRoomView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultSchedulingRoomView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponsePageResultSchedulingTeachingTaskView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultSchedulingTeachingTaskView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingCalendarView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingCalendarView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingCampusView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingCampusView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingClassView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingClassView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingCompareView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingCompareView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingCourseView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingCourseView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingDiagnosticsView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingDiagnosticsView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingEntryView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingEntryView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingEvaluationView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingEvaluationView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingImportResult": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingImportResult"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingJobStatusView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingJobStatusView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingJobView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingJobView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingPrecheckView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingPrecheckView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingRoomView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingRoomView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTeacherView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTeacherView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTeacherWorkloadView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTeacherWorkloadView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTeachingClassView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTeachingClassView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTeachingTaskView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTeachingTaskView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTermConfigView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTermConfigView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTermView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTermView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTimeRuleView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTimeRuleView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingTimetableView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingTimetableView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSchedulingVersionView": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SchedulingVersionView"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseVoid": {
+        "type": "object",
+        "description": "统一响应体",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {},
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PageResultSchedulingJobView": {
+        "type": "object",
+        "description": "分页结果",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingJobView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultSchedulingRoomView": {
+        "type": "object",
+        "description": "分页结果",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingRoomView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultSchedulingTeachingTaskView": {
+        "type": "object",
+        "description": "分页结果",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTeachingTaskView"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SchedulingAdjustRequest": {
+        "type": "object",
+        "description": "移动单节课；dayOfWeek 为空表示取消安排（unplace）",
+        "properties": {
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 7,
+            "minimum": 1
+          },
+          "startPeriod": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "roomId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "force": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SchedulingAdjustmentView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "versionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "assignmentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "action": {
+            "type": "string"
+          },
+          "fromText": {
+            "type": "string"
+          },
+          "toText": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "operatorId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SchedulingCalendarRequest": {
+        "type": "object",
+        "description": "整体替换教学日历",
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingWeekView"
+            }
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingDateView"
+            }
+          }
+        }
+      },
+      "SchedulingCalendarView": {
+        "type": "object",
+        "description": "教学日历：特殊教学周 + 特殊日期",
+        "properties": {
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingWeekView"
+            }
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingDateView"
+            }
+          }
+        }
+      },
+      "SchedulingCampusRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "SchedulingCampusTravelItem": {
+        "type": "object",
+        "properties": {
+          "fromCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 600,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "fromCampusId",
+          "minutes",
+          "toCampusId"
+        ]
+      },
+      "SchedulingCampusTravelRequest": {
+        "type": "object",
+        "description": "校区通行时间（无序对），会覆盖已有值",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingCampusTravelItem"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SchedulingCampusTravelView": {
+        "type": "object",
+        "properties": {
+          "fromCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "toCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingCampusView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingCandidateView": {
+        "type": "object",
+        "description": "某节课的可选位置（已排除与现有课表冲突的组合）",
+        "properties": {
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roomId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roomCode": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SchedulingClassProfileRequest": {
+        "type": "object",
+        "properties": {
+          "studentCount": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5000,
+            "minimum": 0
+          },
+          "grade": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "homeCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxDailyPeriods": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "maxConsecutivePeriods": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "studentCount"
+        ]
+      },
+      "SchedulingClassView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "grade": {
+            "type": "string"
+          },
+          "studentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "homeCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxDailyPeriods": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxConsecutivePeriods": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingCompareView": {
+        "type": "object",
+        "properties": {
+          "versionA": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "versionB": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nameA": {
+            "type": "string"
+          },
+          "nameB": {
+            "type": "string"
+          },
+          "added": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "removed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "moved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unchanged": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "diffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingEntryDiff"
+            }
+          }
+        }
+      },
+      "SchedulingConflictView": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCode": {
+            "type": "string"
+          },
+          "otherTaskId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teacherNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "classNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "roomCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingConstraintItem": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "code",
+          "enabled",
+          "weight"
+        ]
+      },
+      "SchedulingConstraintRequest": {
+        "type": "object",
+        "description": "覆盖软约束权重（未提交的项保持原值）",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingConstraintItem"
+            }
+          }
+        }
+      },
+      "SchedulingConstraintView": {
+        "type": "object",
+        "description": "约束项：硬约束不可关闭，软约束可配权重",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "hard": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defaultWeight": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingCopyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        }
+      },
+      "SchedulingCourseRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "courseType": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "credit": {
+            "type": "number",
+            "maximum": 20.0,
+            "minimum": 0.0
+          },
+          "totalHours": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 2000,
+            "minimum": 1
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "defaultRoomType": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "requiredFeatures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 10,
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "code",
+          "courseType",
+          "credit",
+          "name",
+          "totalHours"
+        ]
+      },
+      "SchedulingCourseView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "courseType": {
+            "type": "string"
+          },
+          "credit": {
+            "type": "number"
+          },
+          "totalHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "defaultRoomType": {
+            "type": "string"
+          },
+          "requiredFeatures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingDateView": {
+        "type": "object",
+        "description": "特殊日期：HOLIDAY/SUSPENDED/WORKDAY/MAKEUP",
+        "properties": {
+          "eventDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "dateType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "followDayOfWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 7,
+            "minimum": 1
+          },
+          "followDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "dateType",
+          "eventDate",
+          "name"
+        ]
+      },
+      "SchedulingDiagnosticsView": {
+        "type": "object",
+        "description": "任务诊断：预检问题 + 未安排原因 + 资源摘要",
+        "properties": {
+          "jobId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingIssueView"
+            }
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingEntryDiff": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCode": {
+            "type": "string"
+          },
+          "courseName": {
+            "type": "string"
+          },
+          "sessionIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "change": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingEntryView": {
+        "type": "object",
+        "description": "一节（每周重复一次）课时安排",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCode": {
+            "type": "string"
+          },
+          "courseName": {
+            "type": "string"
+          },
+          "teachingClassName": {
+            "type": "string"
+          },
+          "classNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "teacherNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "roomId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roomCode": {
+            "type": "string"
+          },
+          "campusName": {
+            "type": "string"
+          },
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "weekText": {
+            "type": "string"
+          },
+          "timeText": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingEvaluationView": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "number",
+            "format": "double"
+          },
+          "placedSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hardViolations": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "softPenalty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingSoftScoreView"
+            }
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingConflictView"
+            }
+          }
+        }
+      },
+      "SchedulingImportResult": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingImportRowError"
+            }
+          }
+        }
+      },
+      "SchedulingImportRowError": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingIssueView": {
+        "type": "object",
+        "description": "预检/诊断问题：severity=ERROR 阻止求解，WARNING 提示",
+        "properties": {
+          "severity": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingJobCreateRequest": {
+        "type": "object",
+        "description": "创建排课任务；不传 taskIds 表示整个学期（或指定学院）",
+        "properties": {
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "mode": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "baseVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeLimitSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 3600,
+            "minimum": 1
+          },
+          "workers": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 32,
+            "minimum": 1
+          },
+          "randomSeed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "allowPartial": {
+            "type": "boolean"
+          },
+          "keepLocked": {
+            "type": "boolean"
+          },
+          "weightOverrides": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "replanTaskIds": {
+            "type": "array",
+            "description": "局部重排：仅重新安排这些教学任务，其余课次固定（mode=INCREMENTAL）",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "semesterId"
+        ]
+      },
+      "SchedulingJobLogView": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SchedulingJobStatusView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "elapsedMillis": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "solverStatus": {
+            "type": "string"
+          },
+          "objective": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bestBound": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingJobView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "baseVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "solverStatus": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "objective": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "bestBound": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resultVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "elapsedMillis": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "statsJson": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingLockRequest": {
+        "type": "object",
+        "properties": {
+          "locked": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "locked"
+        ]
+      },
+      "SchedulingPeriodRequest": {
+        "type": "object",
+        "description": "整体替换某学期的节次作息",
+        "properties": {
+          "periods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingPeriodView"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "periods"
+        ]
+      },
+      "SchedulingPeriodView": {
+        "type": "object",
+        "description": "节次作息；section 相同且编号连续才能连堂",
+        "properties": {
+          "periodNo": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "endTime",
+          "section",
+          "startTime"
+        ]
+      },
+      "SchedulingPrecheckView": {
+        "type": "object",
+        "properties": {
+          "errorCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "warningCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "solvable": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingIssueView"
+            }
+          }
+        }
+      },
+      "SchedulingPublishRecordView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "versionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "versionName": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "operatorId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "operatorName": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SchedulingPublishRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        }
+      },
+      "SchedulingRoomQuery": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "default": 1,
+            "description": "页码，从 1 开始",
+            "maximum": 100000,
+            "minimum": 1
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "description": "每页条数，1~100",
+            "maximum": 100,
+            "minimum": 1
+          },
+          "campusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roomType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "keyword": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingRoomRequest": {
+        "type": "object",
+        "description": "roomType：NORMAL/MULTIMEDIA/COMPUTER_LAB/LANGUAGE_LAB/LAB/GYM/OTHER；features 为设备标签",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "campusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "building": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "floorNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5000,
+            "minimum": 1
+          },
+          "roomType": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "campusId",
+          "capacity",
+          "code",
+          "name",
+          "roomType"
+        ]
+      },
+      "SchedulingRoomView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "campusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "campusName": {
+            "type": "string"
+          },
+          "building": {
+            "type": "string"
+          },
+          "floorNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roomType": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingSoftScoreView": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "applicable": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "violated": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "penalty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "satisfaction": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SchedulingTaskQuery": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "default": 1,
+            "description": "页码，从 1 开始",
+            "maximum": 100000,
+            "minimum": 1
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "description": "每页条数，1~100",
+            "maximum": 100,
+            "minimum": 1
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "courseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teachingClassId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teacherId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "keyword": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingTaskRoomRef": {
+        "type": "object",
+        "description": "REQUIRED/PREFERRED/FORBIDDEN",
+        "properties": {
+          "roomId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "roomCode": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingTeacherProfileRequest": {
+        "type": "object",
+        "properties": {
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "homeCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxWeeklyPeriods": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 112,
+            "minimum": 1
+          },
+          "maxDailyPeriods": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "maxDailySessions": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "maxConsecutivePeriods": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "courseIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "SchedulingTeacherRef": {
+        "type": "object",
+        "properties": {
+          "teacherId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teacherName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingTeacherView": {
+        "type": "object",
+        "description": "教师及其排课档案；上限为空表示不限制",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orgUnitName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "homeCampusId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "maxWeeklyPeriods": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxDailyPeriods": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxDailySessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxConsecutivePeriods": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "courseIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "SchedulingTeacherWorkloadView": {
+        "type": "object",
+        "description": "教师工作量统计（按已发布或指定版本）",
+        "properties": {
+          "teacherId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teacherName": {
+            "type": "string"
+          },
+          "versions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "periods": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingWorkloadItem"
+            }
+          }
+        }
+      },
+      "SchedulingTeachingClassMemberItem": {
+        "type": "object",
+        "properties": {
+          "classId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "fullClass": {
+            "type": "boolean"
+          },
+          "studentCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "classId",
+          "fullClass"
+        ]
+      },
+      "SchedulingTeachingClassMemberView": {
+        "type": "object",
+        "properties": {
+          "classId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "className": {
+            "type": "string"
+          },
+          "fullClass": {
+            "type": "boolean"
+          },
+          "studentCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingTeachingClassRequest": {
+        "type": "object",
+        "description": "fullClass=true 表示整班参加；false 表示选修抽取，studentCount 必填",
+        "properties": {
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 48,
+            "minLength": 0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "studentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTeachingClassMemberItem"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "code",
+          "members",
+          "name",
+          "semesterId"
+        ]
+      },
+      "SchedulingTeachingClassView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "studentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "computedStudentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTeachingClassMemberView"
+            }
+          }
+        }
+      },
+      "SchedulingTeachingTaskRequest": {
+        "type": "object",
+        "properties": {
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 48,
+            "minLength": 0
+          },
+          "courseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teachingClassId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "startWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "endWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "weekParity": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 0
+          },
+          "sessionsPerWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 14,
+            "minimum": 1
+          },
+          "periodsPerSession": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 8,
+            "minimum": 1
+          },
+          "totalHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roomRequired": {
+            "type": "boolean"
+          },
+          "roomType": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "requiredFeatures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 10,
+            "minimum": 1
+          },
+          "allowSameDay": {
+            "type": "boolean"
+          },
+          "uniformStart": {
+            "type": "boolean"
+          },
+          "linkedCourseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "teacherIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "minItems": 1
+          },
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTaskRoomRef"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "code",
+          "courseId",
+          "endWeek",
+          "periodsPerSession",
+          "semesterId",
+          "sessionsPerWeek",
+          "startWeek",
+          "teacherIds",
+          "teachingClassId"
+        ]
+      },
+      "SchedulingTeachingTaskView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "courseCode": {
+            "type": "string"
+          },
+          "courseName": {
+            "type": "string"
+          },
+          "teachingClassId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "teachingClassName": {
+            "type": "string"
+          },
+          "classNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "orgUnitId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "startWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weekParity": {
+            "type": "string"
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "sessionsPerWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "periodsPerSession": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "providedHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hoursConsistent": {
+            "type": "boolean"
+          },
+          "roomRequired": {
+            "type": "boolean"
+          },
+          "roomType": {
+            "type": "string"
+          },
+          "requiredFeatures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "allowSameDay": {
+            "type": "boolean"
+          },
+          "uniformStart": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "teachers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTeacherRef"
+            }
+          },
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTaskRoomRef"
+            }
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SchedulingTermConfigRequest": {
+        "type": "object",
+        "description": "学期排课配置",
+        "properties": {
+          "teachingWeeks": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "firstWeekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "teachingDays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 7,
+              "minimum": 1
+            },
+            "minItems": 1
+          },
+          "periodsPerDay": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "defaultTravelMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 600,
+            "minimum": 0
+          },
+          "maxRoomCandidates": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 200,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "firstWeekStart",
+          "periodsPerDay",
+          "teachingDays",
+          "teachingWeeks"
+        ]
+      },
+      "SchedulingTermConfigView": {
+        "type": "object",
+        "properties": {
+          "teachingWeeks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "firstWeekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "teachingDays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "periodsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "defaultTravelMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxRoomCandidates": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "periodCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "configured": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SchedulingTermCreateRequest": {
+        "type": "object",
+        "description": "新建学期并同时建立排课配置",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 0
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "teachingWeeks": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "firstWeekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "teachingDays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 7,
+              "minimum": 1
+            },
+            "minItems": 1
+          },
+          "periodsPerDay": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "code",
+          "endDate",
+          "firstWeekStart",
+          "name",
+          "periodsPerDay",
+          "startDate",
+          "teachingDays",
+          "teachingWeeks"
+        ]
+      },
+      "SchedulingTermView": {
+        "type": "object",
+        "description": "学期及其排课配置",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/components/schemas/SchedulingTermConfigView"
+          }
+        }
+      },
+      "SchedulingTimeRuleRequest": {
+        "type": "object",
+        "properties": {
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "targetType": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "targetId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 0
+          },
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 7,
+            "minimum": 1
+          },
+          "startPeriod": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "endPeriod": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 16,
+            "minimum": 1
+          },
+          "startWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "endWeek": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 10,
+            "minimum": 1
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "endPeriod",
+          "kind",
+          "semesterId",
+          "startPeriod",
+          "targetType"
+        ]
+      },
+      "SchedulingTimeRuleView": {
+        "type": "object",
+        "description": "targetType：GLOBAL/TEACHER/CLASS/TEACHING_CLASS/ROOM/COURSE/TASK；kind：FORBIDDEN/FIXED/AVOID/PREFERRED",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "targetName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPeriod": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weight": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "note": {
+            "type": "string"
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "timeText": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingTimetableCell": {
+        "type": "object",
+        "properties": {
+          "dayOfWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingEntryView"
+            }
+          }
+        }
+      },
+      "SchedulingTimetableRow": {
+        "type": "object",
+        "properties": {
+          "periodNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "cells": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTimetableCell"
+            }
+          }
+        }
+      },
+      "SchedulingTimetableView": {
+        "type": "object",
+        "description": "按星期 × 节次组织的课表",
+        "properties": {
+          "versionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "versionName": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "ownerName": {
+            "type": "string"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchedulingTimetableRow"
+            }
+          }
+        }
+      },
+      "SchedulingUnplacedView": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taskCode": {
+            "type": "string"
+          },
+          "courseName": {
+            "type": "string"
+          },
+          "teachingClassName": {
+            "type": "string"
+          },
+          "sessionsPerWeek": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "placedSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missingSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingVersionView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterName": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "jobId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "baseVersionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string"
+          },
+          "totalSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "placedSessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hardViolations": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "score": {
+            "type": "number"
+          },
+          "softPenalty": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedBy": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "SchedulingWeekView": {
+        "type": "object",
+        "description": "特殊教学周",
+        "properties": {
+          "weekNo": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 30,
+            "minimum": 1
+          },
+          "weekType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "teachingAllowed": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "weekType"
+        ]
+      },
+      "SchedulingWorkloadItem": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semesterName": {
+            "type": "string"
+          },
+          "sessions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "periods": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  }
+}

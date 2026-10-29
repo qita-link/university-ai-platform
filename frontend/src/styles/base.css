@@ -161,6 +161,15 @@ samp,
   margin: 2em 0;
 }
 
+/* 正文图片：不撑破版心，细线收边 */
+.prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.2em 0;
+  border: var(--hairline);
+}
+
 /* 小型大写标签：用于“问”“答”“注”等页边标记 */
 .eyebrow {
   font-family: var(--font-sans);
@@ -206,5 +215,13 @@ samp,
   *::after {
     animation-duration: 0ms !important;
     transition-duration: 0ms !important;
+  }
+}
+
+/* 窄屏报头改为两行（字标 + 账号 / 导航），
+   依赖 --masthead-h 计算吸附位置的侧栏与阅读页会一并跟随，避免压在报头下。 */
+@media (max-width: 760px) {
+  :root {
+    --masthead-h: 93px;
   }
 }

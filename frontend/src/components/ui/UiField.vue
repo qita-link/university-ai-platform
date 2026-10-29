@@ -10,7 +10,7 @@ const model = defineModel<string>({ required: true })
 withDefaults(
   defineProps<{
     label: string
-    type?: 'text' | 'password'
+    type?: 'text' | 'password' | 'datetime-local' | 'date'
     autocomplete?: string
     error?: string | null
     hint?: string

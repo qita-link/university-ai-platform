@@ -234,6 +234,8 @@ public class AiToolService {
     /** 本人记录；管理员可查看全部（可按 userId 过滤）。 */
     public PageResult<AiToolCallView> list(AuthenticatedUser user, AiToolCallQuery query) {
         Permissions.require(user, Permissions.AI_TOOL_USE);
+        // 先结算过期：确认期已过却仍挂 PENDING_CONFIRM 的记录会让界面出现“点不动的待确认”
+        callMapper.expireOverdue(user.userId(), LocalDateTime.now(clock));
         LambdaQueryWrapper<AiToolCall> w = new LambdaQueryWrapper<>();
         if (user.isAdmin()) {
             w.eq(query.getUserId() != null, AiToolCall::getUserId, query.getUserId());
@@ -255,6 +257,13 @@ public class AiToolService {
         AiToolCall call = callMapper.selectById(id);
         if (call == null || (!user.isAdmin() && !Objects.equals(call.getUserId(), user.userId()))) {
             throw BusinessException.notFound("工具调用记录");
+        }
+        // 单条也照样结算过期，避免详情页显示“待确认”而操作必然失败
+        if (call.getStatus() != null && call.getStatus().isPendingConfirm()
+                && call.getConfirmExpiresAt() != null
+                && call.getConfirmExpiresAt().isBefore(LocalDateTime.now(clock))) {
+            callMapper.markExpired(id, call.getUserId(), LocalDateTime.now(clock));
+            call = callMapper.selectById(id);
         }
         return view(call, null);
     }

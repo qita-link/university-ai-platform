@@ -1,12 +1,17 @@
 package com.campus.platform.ai.controller;
 
+import com.campus.platform.ai.dto.ActHistoryView;
+import com.campus.platform.ai.dto.AgentActRequest;
+import com.campus.platform.ai.dto.AgentActResponse;
 import com.campus.platform.ai.dto.AiToolCallQuery;
 import com.campus.platform.ai.dto.AiToolCallRequest;
 import com.campus.platform.ai.dto.AiToolCallView;
 import com.campus.platform.ai.dto.AiToolRejectRequest;
 import com.campus.platform.ai.dto.AiToolView;
+import com.campus.platform.ai.service.AgentService;
 import com.campus.platform.ai.service.AiToolService;
 import com.campus.platform.common.api.ApiResponse;
+import com.campus.platform.common.api.PageQuery;
 import com.campus.platform.common.api.PageResult;
 import com.campus.platform.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -36,9 +42,30 @@ import java.util.List;
 public class AiToolController {
 
     private final AiToolService toolService;
+    private final AgentService agentService;
 
-    public AiToolController(AiToolService toolService) {
+    public AiToolController(AiToolService toolService, AgentService agentService) {
         this.toolService = toolService;
+        this.agentService = agentService;
+    }
+
+    @Operation(summary = "自然语言办事",
+            description = "用一句话描述诉求，由模型选择工具并填参：只读工具即时执行并可多轮追问，"
+                    + "写操作只生成待确认记录（返回 pending），需再调用 /tool-calls/{id}/confirm 才执行")
+    @PreAuthorize("hasAuthority('ai:tool:use')")
+    @PostMapping("/act")
+    public ApiResponse<AgentActResponse> act(@AuthenticationPrincipal AuthenticatedUser user,
+                                             @Valid @RequestBody AgentActRequest request) {
+        return ApiResponse.ok(agentService.act(user, request));
+    }
+
+    @Operation(summary = "办事历史", description = "本人办事记录，倒序；管理员可查看全部并可按 userId 过滤")
+    @PreAuthorize("hasAuthority('ai:tool:use')")
+    @GetMapping("/acts")
+    public ApiResponse<PageResult<ActHistoryView>> acts(@AuthenticationPrincipal AuthenticatedUser user,
+                                                        @Valid @ParameterObject PageQuery page,
+                                                        @RequestParam(required = false) Long userId) {
+        return ApiResponse.ok(agentService.listHistory(user, page, userId));
     }
 
     @Operation(summary = "可用工具目录", description = "需要 ai:tool:use；只返回当前用户有权限使用的工具")

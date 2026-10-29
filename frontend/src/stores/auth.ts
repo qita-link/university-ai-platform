@@ -91,11 +91,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * 修改本人密码。后端会让旧令牌全部失效并返回新令牌，
+   * 因此成功后必须立刻换用新令牌，否则下一次请求就会 401。
+   */
+  async function changePassword(oldPassword: string, newPassword: string) {
+    const result = await authApi.changePassword(oldPassword, newPassword)
+    applyLogin(result)
+    return result
+  }
+
   /** 满足任意一个权限点即可 */
   function can(...perms: string[]): boolean {
     if (perms.length === 0) return true
     return perms.some((p) => permissionSet.value.has(p))
   }
 
-  return { token, expiresAt, user, verified, isAuthenticated, login, refreshMe, logout, clear, can }
+  return { token, expiresAt, user, verified, isAuthenticated, login, refreshMe, logout, changePassword, clear, can }
 })

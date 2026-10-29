@@ -114,8 +114,10 @@ public class KnowledgeImportService {
                 if (title == null || title.isBlank()) {
                     title = file.getFileName().toString().replaceFirst("(?i)\\.md$", "");
                 }
+                // 存正文而不是原文：文档站的 frontmatter（title/order）是站点元数据，
+                // 留在正文里会变成每篇开头的一段 "title: … order: …"，也会污染切块与检索。
                 KnowledgeDocumentService.ImportResult result = documentService.importMarkdown(
-                        owner, spaceId, relative, title, content, file.getFileName().toString(), "本地语料导入");
+                        owner, spaceId, relative, title, parsed.body(), file.getFileName().toString(), "本地语料导入");
                 if (result.changed()) {
                     imported++;
                 } else {

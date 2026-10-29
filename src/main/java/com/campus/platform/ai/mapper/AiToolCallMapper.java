@@ -36,6 +36,20 @@ public interface AiToolCallMapper extends BaseMapper<AiToolCall> {
             """)
     int markExpired(@Param("id") long id, @Param("userId") long userId, @Param("now") LocalDateTime now);
 
+    /**
+     * 批量把已过确认期的记录置为 EXPIRED。
+     * <p>
+     * 查询待确认列表前先跑一次：否则过期记录会一直停留在 PENDING_CONFIRM，
+     * 界面挂着“待确认”却点不动（确认时才报过期）。返回被置为过期的条数。
+     */
+    @Update("""
+            UPDATE ai_tool_call
+               SET status = 'EXPIRED', updated_at = #{now}, version = version + 1
+             WHERE user_id = #{userId} AND status = 'PENDING_CONFIRM'
+               AND confirm_expires_at IS NOT NULL AND confirm_expires_at <= #{now}
+            """)
+    int expireOverdue(@Param("userId") long userId, @Param("now") LocalDateTime now);
+
     /** 执行结束：EXECUTING → SUCCEEDED/FAILED。 */
     @Update("""
             UPDATE ai_tool_call

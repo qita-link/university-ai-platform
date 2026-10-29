@@ -704,6 +704,8 @@
 | POST | `/api/v1/ai/tool-calls/{id}/reject` | `ai:tool:use` | 拒绝执行，body 可选 `{ "reason": "..." }` |
 | GET | `/api/v1/ai/tool-calls` | `ai:tool:use` | 调用记录分页；本人记录，管理员可看全部并支持 `userId` 过滤；可按 `status`、`toolName` 过滤 |
 | GET | `/api/v1/ai/tool-calls/{id}` | `ai:tool:use` | 调用详情；非本人且非管理员返回 404 |
+| POST | `/api/v1/ai/act` | `ai:tool:use` | 自然语言办事：一句话交给模型选工具填参；只读可多轮、写操作只返回 `pending` |
+| GET | `/api/v1/ai/acts` | `ai:tool:use` | 办事历史分页；本人记录倒序，管理员可看全部并可按 `userId` 过滤；每条带当时的步骤快照与确认单当前状态 |
 
 调用请求：
 
@@ -742,8 +744,48 @@
 
 - `status` 取值：`PENDING_CONFIRM`（待确认）、`EXECUTING`（已被某个请求认领，短暂状态）、`SUCCEEDED`、`FAILED`、`REJECTED`、`EXPIRED`。
 - 确认有效期默认 10 分钟（`APP_AI_TOOL_CONFIRM_TTL`）；过期确认返回 409 `AI_TOOL_CONFIRM_EXPIRED` 并标记 `EXPIRED`。
+- **过期在查询时结算**：`GET /ai/tool-calls` 与 `GET /ai/tool-calls/{id}` 会先把本人已过 `confirm_expires_at` 的 `PENDING_CONFIRM` 置为 `EXPIRED` 再返回。否则过期记录会一直显示为「待确认」，用户在界面上点它必然失败（早前版本的缺陷）。
 - 并发确认只有一个请求成功，其余返回 409 `AI_TOOL_STATUS_INVALID`，不会重复执行业务动作。
 - 工具目录中的 `requiredPermissions` 为“满足任意一个即可”；目录按当前用户权限过滤，因此学生看不到建课/审批类工具。
+
+#### 自然语言办事 `POST /ai/act`
+
+请求：`{ "message": "给大学物理（上）加一条排课：周四第 7-8 节，1 到 16 周，教室 B201" }`
+
+模型不直接操作数据库，只输出一条“指令 JSON”，由服务端校验后调用工具：
+
+| 模型输出 | 服务端行为 |
+|---|---|
+| `{"action":"call","tool":"...","arguments":{...},"message":"..."}` | 校验工具名与参数；只读工具经 `AiToolService.invoke` 立即执行，结果回灌给模型进入下一轮（最多 4 轮）；写工具生成 `PENDING_CONFIRM` 并立即返回 |
+| `{"action":"ask","message":"..."}` | 信息不足，直接把问题回给用户 |
+| `{"action":"answer","message":"..."}` | 已可作答，结束 |
+| 非 JSON 文本 | 原样回显，`outcome=RAW_TEXT`，不执行任何动作 |
+
+响应：
+
+```json
+{
+  "reply": "为大学物理（上）新增周四第 7-8 节、1-16 周、教室 B201 的排课，提交后需你确认",
+  "steps": [
+    { "roundNo": 1, "toolName": "searchAvailableCourses", "title": "查询可选课程", "sideEffect": false,
+      "arguments": { "semesterId": 1, "keyword": "大学物理" }, "status": "SUCCEEDED",
+      "summary": "返回 1 门课程，其中 1 门可选", "errorCode": null, "errorMessage": null, "callId": 41 },
+    { "roundNo": 2, "toolName": "updateCourseSchedule", "title": "排课", "sideEffect": true,
+      "arguments": { "courseId": 6, "dayOfWeek": 4, "startPeriod": 7, "endPeriod": 8,
+                     "startWeek": 1, "endWeek": 16, "weekParity": "ALL", "classroom": "B201" },
+      "status": "PENDING_CONFIRM", "summary": null, "errorCode": null,
+      "errorMessage": null, "callId": 42 }
+  ],
+  "pending": { "id": 42, "status": "PENDING_CONFIRM", "preview": "将为课程《PH102 大学物理（上）》的排课：周4 第7-8 节，第1-16 周（ALL），教室 B201" },
+  "outcome": "WAITING_CONFIRM",
+  "model": "deepseek-flash"
+}
+```
+
+- `outcome`：`DONE`（已答复）/ `WAITING_CONFIRM`（等确认）/ `MAX_ROUNDS`（轮次用尽）/ `RAW_TEXT`（模型未按协议输出）。
+- 写操作**只到确认单为止**，必须再调 `POST /ai/tool-calls/{id}/confirm`；确认执行仍走同一条 `AiToolService.confirm`，并发与过期规则不变。
+- 每一步都对应一条 `ai_tool_call` 记录（`source=AI_TOOL` 写入审计），界面上的“经过”与审计日志可逐条对上。
+- 权限不因走自然语言而放宽：可用工具按 `ai:tool:use` + 工具声明的功能权限过滤，最终仍由业务 Service 判断数据归属。
 
 #### 工具清单（阶段七）
 
