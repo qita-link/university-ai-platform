@@ -1531,3 +1531,26 @@ export interface ProfilePostView {
   editorName: string | null
   editorRole: string | null
 }
+
+// ---- 论坛举报 ----
+export type ReportTargetType = 'POST' | 'COMMENT'
+export type ReportStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
+
+export interface ForumReportView {
+  id: number
+  targetType: ReportTargetType
+  targetId: number
+  /** 被举报内容的标题或摘要 */
+  targetTitle: string | null
+  targetVisible: boolean
+  reporterId: number
+  reporterName: string | null
+  reason: string
+  detail: string | null
+  status: ReportStatus
+  handledBy: number | null
+  handlerName: string | null
+  handledAt: string | null
+  handleNote: string | null
+  createdAt: string
+}

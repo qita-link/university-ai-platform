@@ -9,6 +9,7 @@ import RolesPanel from './RolesPanel.vue'
 import AuditPanel from './AuditPanel.vue'
 import SemestersPanel from './SemestersPanel.vue'
 import SettingsPanel from './SettingsPanel.vue'
+import ReportsPanel from './ReportsPanel.vue'
 
 /**
  * 管理工作台：用户、组织、角色与审计四件事放在同一页的四个抽屉里。
@@ -19,7 +20,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 interface TabDef {
-  key: 'users' | 'org' | 'semesters' | 'roles' | 'audit' | 'settings'
+  key: 'users' | 'org' | 'semesters' | 'roles' | 'audit' | 'reports' | 'settings'
   label: string
   anyOf: string[]
 }
@@ -30,6 +31,7 @@ const TABS: TabDef[] = [
   { key: 'semesters', label: '学期', anyOf: ['course:manage_all'] },
   { key: 'roles', label: '角色与权限', anyOf: ['role:manage'] },
   { key: 'audit', label: '审计日志', anyOf: ['audit:read'] },
+  { key: 'reports', label: '举报审核', anyOf: ['forum:moderate'] },
   { key: 'settings', label: '设置', anyOf: ['system:config'] },
 ]
 
@@ -76,6 +78,7 @@ function go(key: string) {
     <SemestersPanel v-else-if="current === 'semesters'" />
     <RolesPanel v-else-if="current === 'roles'" />
     <AuditPanel v-else-if="current === 'audit'" />
+    <ReportsPanel v-else-if="current === 'reports'" />
     <SettingsPanel v-else-if="current === 'settings'" />
   </div>
 </template>

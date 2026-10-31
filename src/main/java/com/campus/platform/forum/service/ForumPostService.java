@@ -61,11 +61,12 @@ public class ForumPostService {
     private final SettingService settingService;
     private final AuditService auditService;
     private final Clock clock;
+    private final SensitiveWordService sensitiveWordService;
 
     public ForumPostService(ForumPostMapper postMapper, ForumCategoryService categoryService,
                             ForumAccessService accessService, SysUserMapper userMapper,
                             NotificationService notificationService, SettingService settingService,
-                            AuditService auditService, Clock clock) {
+                            AuditService auditService, Clock clock, SensitiveWordService sensitiveWordService) {
         this.postMapper = postMapper;
         this.categoryService = categoryService;
         this.accessService = accessService;
@@ -74,6 +75,7 @@ public class ForumPostService {
         this.settingService = settingService;
         this.auditService = auditService;
         this.clock = clock;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     /**
@@ -125,6 +127,8 @@ public class ForumPostService {
         Permissions.require(user, Permissions.FORUM_POST_WRITE);
         ForumCategory category = categoryService.requireActive(req.categoryId());
         requireAnnouncePermission(user, category);
+        // 敏感词在落库前拦掉：违规内容一旦发出去被截图就很难收回
+        sensitiveWordService.check(req.title(), req.content());
         LocalDateTime now = LocalDateTime.now(clock);
 
         ForumPost post = new ForumPost();
@@ -155,6 +159,7 @@ public class ForumPostService {
         if (Boolean.TRUE.equals(category.getAnnouncement()) || isAnnouncementPost(post)) {
             requireAnnouncePermission(user, category);
         }
+        sensitiveWordService.check(req.title(), req.content());
         LocalDateTime now = LocalDateTime.now(clock);
 
         int updated = postMapper.update(null, new LambdaUpdateWrapper<ForumPost>()

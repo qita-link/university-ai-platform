@@ -22,6 +22,8 @@ import type {
   ForumCommentPage,
   ForumPostDetail,
   ForumPostSummary,
+  ForumReportView,
+  ReportTargetType,
   KnowledgeCategory,
   LeaveView,
   LoginResult,
@@ -773,4 +775,14 @@ export const schedulingApi = {
     http.put<TimeRule>(`/scheduling/rules/${id}`, body),
 
   deleteRule: (id: number) => http.del<void>(`/scheduling/rules/${id}`),
+}
+
+/** 论坛举报与审核队列 */
+export const forumReportApi = {
+  report: (body: { targetType: ReportTargetType; targetId: number; reason: string; detail?: string | null }) =>
+    http.post<number>('/forum/reports', body),
+  list: (params: { status?: string; page?: number; size?: number } = {}) =>
+    http.get<PageResult<ForumReportView>>('/forum/reports', params),
+  handle: (id: number, accept: boolean, note?: string | null) =>
+    http.post<void>(`/forum/reports/${id}/handle`, { accept, note }),
 }

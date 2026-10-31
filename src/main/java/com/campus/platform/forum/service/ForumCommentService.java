@@ -64,11 +64,13 @@ public class ForumCommentService {
     private final SettingService settingService;
     private final AuditService auditService;
     private final Clock clock;
+    private final SensitiveWordService sensitiveWordService;
 
     public ForumCommentService(ForumCommentMapper commentMapper, ForumPostMapper postMapper,
                                ForumCategoryService categoryService, ForumAccessService accessService,
                                SysUserMapper userMapper, NotificationService notificationService,
-                               SettingService settingService, AuditService auditService, Clock clock) {
+                               SettingService settingService, AuditService auditService, Clock clock,
+                               SensitiveWordService sensitiveWordService) {
         this.commentMapper = commentMapper;
         this.postMapper = postMapper;
         this.categoryService = categoryService;
@@ -78,6 +80,7 @@ public class ForumCommentService {
         this.settingService = settingService;
         this.auditService = auditService;
         this.clock = clock;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     /**
@@ -141,6 +144,7 @@ public class ForumCommentService {
         if (category.getStatus() != ForumCategoryStatus.ACTIVE) {
             throw BusinessException.notFound("帖子");
         }
+        sensitiveWordService.check(req.content());
 
         ForumComment parent = null;
         if (req.parentId() != null) {

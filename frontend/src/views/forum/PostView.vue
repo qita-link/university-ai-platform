@@ -5,6 +5,7 @@ import { forumApi } from '@/api/endpoints'
 import type { ForumComment, ForumCommentThread, ForumPostDetail } from '@/api/types'
 import { ApiError } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
+import { forumReportApi } from '@/api/endpoints'
 import { useToastStore } from '@/stores/toast'
 import { errorMessage, traceIdOf } from '@/lib/errors'
 import { renderMarkdown } from '@/lib/markdown'
@@ -253,6 +254,40 @@ async function confirmDeletePost() {
 
 const moderating = ref(false)
 
+/* ---------------- 举报 ---------------- */
+const reportOpen = ref(false)
+const reportBusy = ref(false)
+const reportReason = ref('SPAM')
+const reportDetail = ref('')
+const REASON_OPTIONS = [
+  { value: 'SPAM', label: '垃圾广告' },
+  { value: 'ABUSE', label: '辱骂攻击' },
+  { value: 'PORN', label: '色情低俗' },
+  { value: 'ILLEGAL', label: '违法违规' },
+  { value: 'ACADEMIC', label: '学术不端' },
+  { value: 'OTHER', label: '其他' },
+]
+
+async function submitReport() {
+  if (!post.value) return
+  reportBusy.value = true
+  try {
+    await forumReportApi.report({
+      targetType: 'POST',
+      targetId: post.value.id,
+      reason: reportReason.value,
+      detail: reportDetail.value.trim() || null,
+    })
+    toast.push('已提交举报，管理员会尽快处理', 'success')
+    reportOpen.value = false
+    reportDetail.value = ''
+  } catch (e) {
+    toast.push(errorMessage(e), 'danger', traceIdOf(e))
+  } finally {
+    reportBusy.value = false
+  }
+}
+
 /* ---------------- 限时置顶 ---------------- */
 const pinOpen = ref(false)
 const pinDays = ref('7')
@@ -361,7 +396,7 @@ async function toggleHide() {
             </span>
           </p>
 
-          <div v-if="isAuthor || canModerate" class="letter__actions">
+          <div class="letter__actions">
             <UiButton v-if="isAuthor && canWrite" size="sm" @click="openEdit">编辑</UiButton>
             <template v-if="canModerate">
               <UiButton size="sm" @click="openPin">
@@ -371,7 +406,8 @@ async function toggleHide() {
                 {{ post.status === 'HIDDEN' ? '恢复显示' : '隐藏' }}
               </UiButton>
             </template>
-            <UiButton size="sm" variant="danger" @click="deleteOpen = true">删除</UiButton>
+            <UiButton v-if="isAuthor || canModerate" size="sm" variant="danger" @click="deleteOpen = true">删除</UiButton>
+            <UiButton v-if="!isAuthor && !canModerate" size="sm" variant="link" @click="reportOpen = true">举报</UiButton>
           </div>
         </header>
 
@@ -521,6 +557,26 @@ async function toggleHide() {
         <UiButton v-if="post?.pinned" variant="danger" :disabled="pinBusy" @click="unpin">取消置顶</UiButton>
         <UiButton variant="link" :disabled="pinBusy" @click="pinOpen = false">关闭</UiButton>
         <UiButton variant="primary" :loading="pinBusy" @click="submitPin">确认置顶</UiButton>
+      </template>
+    </UiDialog>
+
+    <!-- 举报 -->
+    <UiDialog
+      :open="reportOpen"
+      title="举报这篇帖子"
+      eyebrow="内容合规"
+      width="sm"
+      :dismissible="!reportBusy"
+      @close="reportOpen = false"
+    >
+      <div class="form">
+        <p class="pin-note">举报会进入管理员审核队列。恶意举报同样会被记录。</p>
+        <UiSelect v-model="reportReason" label="举报原因" :options="REASON_OPTIONS" />
+        <UiTextarea v-model="reportDetail" label="补充说明" hint="可选，帮助管理员判断" :rows="3" :maxlength="500" />
+      </div>
+      <template #footer>
+        <UiButton variant="link" :disabled="reportBusy" @click="reportOpen = false">取消</UiButton>
+        <UiButton variant="primary" :loading="reportBusy" @click="submitReport">提交举报</UiButton>
       </template>
     </UiDialog>
 
