@@ -11,9 +11,16 @@ export const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周�
 
 export type TimetableItem = Pick<
   MyScheduleItem,
-  'scheduleId' | 'courseId' | 'courseCode' | 'courseName' | 'teacherNames' | 'dayOfWeek'
+  'courseId' | 'courseCode' | 'courseName' | 'teacherNames' | 'dayOfWeek'
 > &
-  Pick<Schedule, 'startPeriod' | 'endPeriod' | 'startWeek' | 'endWeek' | 'weekParity' | 'classroom'>
+  Pick<Schedule, 'startPeriod' | 'endPeriod' | 'startWeek' | 'endWeek' | 'weekParity' | 'classroom'> & {
+    /** 手工排课 ID（自动排课来源时为 null） */
+    scheduleId?: number | null
+    /** 自动排课分配 ID（手工排课来源时为 null） */
+    assignmentId?: number | null
+    /** SCHEDULING / COURSE，用于区分来源 */
+    source?: 'SCHEDULING' | 'COURSE'
+  }
 
 export function weekdayName(day: number): string {
   return WEEKDAYS[day - 1] ?? `第 ${day} 天`

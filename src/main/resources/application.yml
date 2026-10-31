@@ -120,7 +120,14 @@ management:
 
 app:
   time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+  timetable:
+    # 课表缓存：读多写极少，缓存几十秒可把高并发读压到几乎不查库；发布新排课后最多延迟一个 TTL 生效
+    cache-ttl: ${APP_TIMETABLE_CACHE_TTL:30s}
   security:
+    # 角色/权限快照缓存：降低高并发下每个请求的数据库查询次数。
+    # 账号状态与 token_version 仍实时校验，缓存只影响「角色调整」的生效延迟。
+    permission-cache-ttl: ${APP_PERMISSION_CACHE_TTL:30s}
+    permission-cache-max: ${APP_PERMISSION_CACHE_MAX:10000}
     jwt:
       # 至少 32 字节的随机字符串，例如：openssl rand -base64 48
       secret: ${APP_JWT_SECRET:}

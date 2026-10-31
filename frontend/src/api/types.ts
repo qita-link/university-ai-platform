@@ -480,7 +480,12 @@ export interface MyScheduleItem {
   courseCode: string
   courseName: string
   teacherNames: string[]
-  scheduleId: number
+  /** 手工排课记录 ID；来自自动排课时为 null */
+  scheduleId: number | null
+  /** 自动排课分配 ID；来自手工排课时为 null（旧接口不返回该字段） */
+  assignmentId?: number | null
+  /** SCHEDULING=自动排课已发布，COURSE=课程手工排课 */
+  source?: 'SCHEDULING' | 'COURSE'
   dayOfWeek: number
   startPeriod: number
   endPeriod: number

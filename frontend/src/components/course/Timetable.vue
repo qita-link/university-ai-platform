@@ -48,6 +48,8 @@ const blocks = computed(() =>
     return {
       ...it,
       span,
+      // 统一课表里两套排课的 ID 体系不同，键要带来源前缀，避免同一门课两条记录撞键
+      key: it.source === 'SCHEDULING' ? `A${it.assignmentId}` : `S${it.scheduleId}`,
       gridStyle: {
         gridColumn: String(it.dayOfWeek + 1),
         gridRow: `${it.startPeriod + 1} / ${it.endPeriod + 2}`,
@@ -88,7 +90,7 @@ const blocks = computed(() =>
           />
         </template>
 
-        <article v-for="b in blocks" :key="b.scheduleId" class="block" :style="b.gridStyle" :title="b.fullText">
+        <article v-for="b in blocks" :key="b.key" class="block" :style="b.gridStyle" :title="b.fullText">
           <p class="block__name">{{ b.courseName }}</p>
           <p v-if="b.span >= 2" class="block__meta">{{ b.classroom || '地点待定' }}</p>
           <p v-if="b.span >= 3" class="block__meta block__meta--dim">{{ b.teacherNames.join('、') }}</p>

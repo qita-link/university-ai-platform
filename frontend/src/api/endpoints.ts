@@ -284,8 +284,9 @@ export const courseApi = {
 }
 
 export const scheduleApi = {
+  /** 统一课表：自动排课已发布结果优先，手工排课兜底（source 字段标明来源） */
   mine: (semesterId?: number | null) =>
-    http.get<MyScheduleItem[]>('/schedules/me', semesterId ? { semesterId } : undefined),
+    http.get<MyScheduleItem[]>('/timetables/me', semesterId ? { semesterId } : undefined),
 
   /** 课表左侧的时间列：第几节几点到几点（timetable:read 即可读，学生也有） */
   periods: (semesterId: number) =>

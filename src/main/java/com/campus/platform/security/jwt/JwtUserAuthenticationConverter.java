@@ -35,9 +35,11 @@ import java.util.Objects;
 public class JwtUserAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final SysUserMapper userMapper;
+    private final PermissionCache permissionCache;
 
-    public JwtUserAuthenticationConverter(SysUserMapper userMapper) {
+    public JwtUserAuthenticationConverter(SysUserMapper userMapper, PermissionCache permissionCache) {
         this.userMapper = userMapper;
+        this.permissionCache = permissionCache;
     }
 
     @Override
@@ -65,8 +67,13 @@ public class JwtUserAuthenticationConverter implements Converter<Jwt, AbstractAu
             throw new InvalidBearerTokenException("令牌已失效");
         }
 
-        List<String> roles = userMapper.selectRoleCodes(userId);
-        List<String> permissions = userMapper.selectPermissionCodes(userId);
+        // 角色与权限走短时缓存（高并发下避免每请求 3 次查询）；用户行仍实时查，保证停用/锁定立即生效
+        PermissionCache.Snapshot snapshot = permissionCache.get(userId, user.getTokenVersion(), () ->
+                new PermissionCache.Snapshot(user.getTokenVersion(),
+                        userMapper.selectRoleCodes(userId),
+                        userMapper.selectPermissionCodes(userId)));
+        List<String> roles = snapshot.roles();
+        List<String> permissions = snapshot.permissions();
         AuthenticatedUser principal = new AuthenticatedUser(user.getId(), user.getUsername(), user.getDisplayName(),
                 user.getOrgUnitId(), new HashSet<>(roles), new HashSet<>(permissions));
 

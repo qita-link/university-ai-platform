@@ -68,6 +68,12 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- 本地缓存：每个请求的角色/权限快照，降低高并发下的数据库压力 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <!-- 安全：Spring Security + 资源服务器(JWT 校验，HS256) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
