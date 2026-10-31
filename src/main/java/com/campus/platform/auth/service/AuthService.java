@@ -230,7 +230,7 @@ public class AuthService {
         JwtTokenService.IssuedToken token = tokenService.issueAccessToken(user.getId(), user.getUsername(),
                 user.getTokenVersion());
         CurrentUserResponse me = new CurrentUserResponse(user.getId(), user.getUsername(), user.getDisplayName(),
-                user.getOrgUnitId(),
+                user.getAvatarVersion() == null ? 0 : user.getAvatarVersion(), user.getOrgUnitId(),
                 new TreeSet<>(userMapper.selectRoleCodes(user.getId())),
                 new TreeSet<>(userMapper.selectPermissionCodes(user.getId())));
         return new LoginResponse(token.accessToken(), LoginResponse.BEARER, token.expiresInSeconds(),

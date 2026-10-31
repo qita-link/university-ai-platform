@@ -233,3 +233,90 @@ erDiagram
 - **确认有效期**：`confirm_expires_at` 由 `app.ai.tool.confirm-ttl`（默认 10 分钟）生成；认领条件包含 `confirm_expires_at > now`，因此过期记录无法被确认，会被标记为 `EXPIRED`。
 - **审计**：调用/确认/拒绝/过期都写 `audit_log`（`source=AI_TOOL`），表本身不重复保存审计字段。
 
+
+
+### 5.6 校务服务（V10，已完成）
+
+| 表 | 关键字段 | 约束/索引 |
+|---|---|---|
+| `grade_rule` | name, min_score, max_score, grade_point, grade_level, sort_order | `UNIQUE(min_score, max_score)`；CHECK 区间与绩点范围；内置 4.0 制十档 |
+| `course_grade` | course_id, student_id, score, grade_point, grade_level, status(DRAFT/PUBLISHED), remark, graded_by, published_at, version | `UNIQUE(course_id, student_id)`；`idx(student_id, status)`；course 级联删除、student 限制删除 |
+| `teaching_evaluation` | semester_id, course_id, teacher_id, student_id, 四个维度分, total_score, comment, anonymous | `UNIQUE(course_id, teacher_id, student_id)`（每生每课每师一次）；teacher/student 索引 |
+| `campus_feedback` | category, title, content, anonymous, student_id, status(OPEN/PROCESSING/RESOLVED/CLOSED), handler_id, reply, replied_at, version | `idx(status, id)`、`idx(student_id, id)`；handler 删除时 SET NULL |
+| `class_counselor` | class_id, counselor_id | 复合主键；两侧外键均级联 |
+| `leave_approval` | leave_id, stage, approver_role(TEACHER/COUNSELOR/ADMIN), approver_id, decision, comment, decided_at | `UNIQUE(leave_id, stage)` 保证同级只有一个结论；leave 级联删除 |
+| `attendance_session` | course_id, schedule_id, class_id, session_date, start_period, end_period, status(DRAFT/FINAL), note, version | `UNIQUE(course_id, class_id, session_date, start_period)`；`idx(class_id, session_date)` |
+| `attendance_record` | session_id, student_id, status(PRESENT/ABSENT/LATE/LEAVE), leave_id, remark | `UNIQUE(session_id, student_id)`；session 级联删除 |
+| `platform_setting` | setting_key, setting_value, description, updated_by | 主键 `setting_key`，值为字符串 |
+
+语义说明：
+
+- **成绩快照**：`grade_point`/`grade_level` 在保存时按当时的 `grade_rule` 换算并落库，之后调整规则不会改写历史成绩；发布只把 `DRAFT` 且已录分数的行改为 `PUBLISHED`。
+- **评教匿名**：`student_id` 用于唯一约束与追溯，接口不向教师返回；留言与总分只做聚合。
+- **请假流程快照**：`approval_order`、`total_stages`、`current_stage` 在提交时固化，`leave_approval` 是逐级流水；状态更新条件包含 `current_stage`，同一级并发只有一人成功。
+- **销假**：只写 `revoked_at/revoke_note/revoked_by`，不改 `status`，用 `AND revoked_at IS NULL` 防重复销假。
+- **考勤唯一性**：同一班同一门课同一天同一开始节次只能有一个场次；`attendance_record` 一人一条，重复登记由唯一键拦截。
+- **设置项**：`leave.approval.teacher/counselor/order`、`evaluation.anonymous`、`grade.gpa.scale`；写入前校验「教师与导员不能同时关闭」。
+
+
+### 5.7 通知、考勤申诉与教室借用（V11，已完成）
+
+| 表 | 关键字段 | 约束/索引 |
+|---|---|---|
+| `notification` | user_id, category, level, title, body, link_url, biz_type, biz_id, read_at | `idx(user_id, read_at, id)`、`idx(biz_type, biz_id)`；user 级联删除 |
+| `notification_delivery` | notification_id, channel(EMAIL/WECHAT), status, attempts, last_error, sent_at | `UNIQUE(notification_id, channel)`；notification 级联删除 |
+| `attendance_appeal` | record_id, student_id, reason, target_status, status(PENDING/APPROVED/REJECTED), reviewer_id, review_comment, reviewed_at, version | `UNIQUE(record_id)`；`idx(student_id, status, id)`、`idx(status, id)` |
+| `attendance_warning` | student_id, course_id, absent_count | `UNIQUE(student_id, course_id, absent_count)`，同一门槛只提醒一次 |
+| `room_booking` | room_id, applicant_id, booking_date, start_period, end_period, purpose, attendees, status, reviewer_id, version | `idx(room_id, booking_date, status)`、`idx(applicant_id, id)`、`idx(status, id)` |
+
+语义说明：
+
+- **通知独立事务**：站内信在 `NotificationWriter` 的 REQUIRES_NEW 事务中写入，避免通知失败回滚业务；渠道投递状态单独记录，未接入的发送器写 `SKIPPED`。
+- **申诉唯一性**：`UNIQUE(record_id)` 保证一条考勤明细只有一条申诉；审核通过后直接改 `attendance_record.status`，不新增考勤行。
+- **预警去重**：以 `(student_id, course_id, absent_count)` 唯一键控制「同一累计次数只提醒一次」，后续达到更高次数会再提醒。
+- **借用冲突**：数据库不建区间约束，申请与审批时分别校验课表占用与已批准借用；审批使用 `WHERE status='PENDING'` 条件更新。
+
+### 5.8 论坛通知与官方公告（V12，已完成）
+
+| 变更 | 字段 | 说明 |
+|---|---|---|
+| `forum_category` | `announcement BOOLEAN NOT NULL DEFAULT FALSE` | 公告分类：发帖需 `forum:announce`，发布后广播全员 |
+| `notification` | `popup_required BOOLEAN NOT NULL DEFAULT FALSE` | 登录后弹窗提示；弹窗关闭即写 `read_at` |
+| `notification` | `KEY idx_notification_popup (user_id, popup_required, read_at, id)` | 弹窗查询走该索引 |
+
+语义说明：
+
+- **公告分类**：只是分类上的一个标记，不新增表；帖子仍在 `forum_post` 里，评论、置顶、隐藏等能力完全复用。
+- **广播**：`INSERT INTO notification SELECT ... FROM sys_user WHERE status='ACTIVE'` 一条语句写完，
+  不逐用户开事务；发布者用 `excludeUserId` 排除。`roleCode` 为空表示全校，预留给按角色定向。
+- **弹窗标记**：`popup_required` 与 `read_at` 组合出「待弹窗」集合；关闭弹窗即标记已读，天然幂等、不会重复弹。
+- **通知分类**：新增 `FORUM`（论坛互动）与 `ANNOUNCEMENT`（官方公告），前端按分类分组与筛选。
+
+### 5.9 论坛限时置顶（V13，已完成）
+
+| 变更 | 字段 | 说明 |
+|---|---|---|
+| `forum_post` | `pinned_until DATETIME(3) NULL` | 置顶到期时间；`NULL` 表示长期置顶 |
+| `forum_post` | `KEY idx_forum_post_pin (pinned, pinned_until, last_activity_at)` | 列表按「有效置顶」排序时避免全表排序 |
+
+语义说明：
+
+- **有效置顶**：`pinned = TRUE AND (pinned_until IS NULL OR pinned_until > NOW(3))`，
+  排序 SQL 与 Java 视图（`isPinned`）用同一口径，过期后自动回到普通排序，无需定时任务清理。
+- **只改状态不改置顶**：`PATCH /forum/posts/{id}/status` 不传 `pinned` 时保留原到期时间，
+  避免「隐藏再恢复」把置顶期限重置；若该置顶已过期，则顺手把 `pinned` 与 `pinned_until` 清空。
+- **视图不暴露过期值**：已失效的置顶在接口里返回 `pinned = false`、`pinnedUntil = null`。
+
+### 5.10 个人资料与头像（V14，已完成）
+
+| 变更 | 字段/表 | 说明 |
+|---|---|---|
+| `sys_user` | `avatar_version INT NOT NULL DEFAULT 0` | 上传/删除头像后自增，前端拼进图片 URL 做缓存失效 |
+| `user_avatar` | user_id(PK), content_type, size_bytes, bytes MEDIUMBLOB, updated_at | 一人一张；随用户级联删除 |
+
+语义说明：
+
+- **二进制单独存放**：查用户、登录、列表都不会把图片读出来；只有 `/profile/avatar/{id}` 读 BLOB。
+- **版本号而不是时间戳**：换头像后 `avatar_version+1`，接口地址变化即可绕开浏览器缓存，
+  不依赖服务端时钟或多实例一致性。
+- **校验在服务层**：Content-Type 白名单（PNG/JPEG/WebP）+ 文件头魔数双重校验，≤1.5MB。

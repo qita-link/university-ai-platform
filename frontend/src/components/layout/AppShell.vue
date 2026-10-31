@@ -1,198 +1,235 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useToastStore } from '@/stores/toast'
-import { ApiError } from '@/api/http'
-import { errorMessage, traceIdOf } from '@/lib/errors'
-import { NAV } from '@/router/nav'
-import UiButton from '@/components/ui/UiButton.vue'
-import UiDialog from '@/components/ui/UiDialog.vue'
-import UiField from '@/components/ui/UiField.vue'
+import { useNotifyStore } from '@/stores/notify'
+import { NAV, isNavGroup, type NavGroup, type NavItem } from '@/router/nav'
+import { useAvatarStore } from '@/stores/avatar'
+import UserMenu from '@/components/layout/UserMenu.vue'
+import AnnouncementPopup from '@/components/layout/AnnouncementPopup.vue'
+import NotificationDrawer from '@/components/layout/NotificationDrawer.vue'
 
+/**
+ * 外壳：主导航固定在左侧（手机收成抽屉），正文在右侧。
+ * <p>
+ * 桌面放得下常驻侧栏；手机放不下就变成「汉堡 → 左侧滑出」，铃铛与账号放在顶部条上，
+ * 保证通知抽屉与切换账号始终一键可达。
+ */
 const auth = useAuthStore()
-const toast = useToastStore()
-const router = useRouter()
+const notify = useNotifyStore()
+const avatar = useAvatarStore()
+const route = useRoute()
 
-const items = computed(() => NAV.filter((n) => auth.can(...n.anyOf)))
+/** 登录态里带头像版本，版本变了（换头像）就重新取一次图片 */
+watchEffect(() => {
+  void avatar.load(auth.user)
+})
 
-const ROLE_LABEL: Record<string, string> = { ADMIN: '管理员', TEACHER: '教师', STUDENT: '学生' }
-const roleText = computed(() => (auth.user?.roles ?? []).map((r) => ROLE_LABEL[r] ?? r).join(' · ') || '未分配角色')
-const initial = computed(() => (auth.user?.displayName ?? '?').slice(-1))
-
-const menuOpen = ref(false)
-const loggingOut = ref(false)
-
-async function logout() {
-  loggingOut.value = true
-  await auth.logout()
-  loggingOut.value = false
-  menuOpen.value = false
-  await router.replace({ name: 'login' })
+function canSee(item: NavItem): boolean {
+  const roleAllowed = !item.roles?.length || item.roles.some((role) => auth.user?.roles.includes(role))
+  return roleAllowed && auth.can(...item.anyOf)
 }
 
-/* ---------------- 修改密码 ---------------- */
-const pwdOpen = ref(false)
-const pwdOld = ref('')
-const pwdNew = ref('')
-const pwdAgain = ref('')
-const pwdBusy = ref(false)
-const pwdError = ref<{ old?: string | null; fresh?: string | null; again?: string | null }>({})
+const items = computed<(NavItem | NavGroup)[]>(() =>
+  NAV.flatMap((entry): (NavItem | NavGroup)[] => {
+    if (!isNavGroup(entry)) return canSee(entry) ? [entry] : []
+    const children = entry.children.filter(canSee)
+    return children.length ? [{ ...entry, children }] : []
+  }),
+)
 
-function openPassword() {
-  menuOpen.value = false
-  pwdOld.value = ''
-  pwdNew.value = ''
-  pwdAgain.value = ''
-  pwdError.value = {}
-  pwdOpen.value = true
+/** 大模块展开状态；当前路由所在分组会自动展开。 */
+const expanded = ref<Record<string, boolean>>({})
+
+function toggleGroup(key: string) {
+  expanded.value[key] = !expanded.value[key]
 }
 
-async function submitPassword() {
-  pwdError.value = {}
-  if (!pwdOld.value) {
-    pwdError.value = { old: '请输入原密码' }
-    return
-  }
-  if (pwdNew.value.length < 8) {
-    pwdError.value = { fresh: '新密码至少 8 位' }
-    return
-  }
-  if (pwdNew.value === pwdOld.value) {
-    pwdError.value = { fresh: '新密码不能与原密码相同' }
-    return
-  }
-  if (pwdNew.value !== pwdAgain.value) {
-    pwdError.value = { again: '两次输入的新密码不一致' }
-    return
-  }
+/** 手机端左侧导航抽屉 */
+const navOpen = ref(false)
+/** 通知抽屉：点铃铛从右侧滑出，不再整页跳到通知中心 */
+const notifyOpen = ref(false)
 
-  pwdBusy.value = true
-  try {
-    await auth.changePassword(pwdOld.value, pwdNew.value)
-    pwdOpen.value = false
-    toast.push('密码已更新，其他设备上的登录已失效', 'success')
-  } catch (e) {
-    const apiErr = e instanceof ApiError ? e : null
-    pwdError.value = {
-      old: apiErr?.fieldError('oldPassword') ?? null,
-      fresh: apiErr?.fieldError('newPassword') ?? null,
+function openNotify() {
+  navOpen.value = false
+  notifyOpen.value = true
+}
+
+/** 路径按前缀匹配；入口带 tab 时还要匹配页签，避免两个信箱子项同时高亮。 */
+function isActive(to: string): boolean {
+  const [path, query] = to.split('?')
+  const pathActive = path === '/' ? route.path === '/' : route.path === path || route.path.startsWith(path + '/')
+  if (!pathActive || !query) return pathActive
+  const params = new URLSearchParams(query)
+  return [...params.entries()].every(([key, value]) => String(route.query[key] ?? '') === value)
+}
+
+function isGroupActive(key: string): boolean {
+  const group = items.value.find((entry) => isNavGroup(entry) && entry.key === key)
+  return !!group && isNavGroup(group) && group.children.some((item) => isActive(item.to))
+}
+
+watch(
+  () => route.path,
+  () => {
+    navOpen.value = false
+    notifyOpen.value = false
+    for (const entry of items.value) {
+      if (isNavGroup(entry) && isGroupActive(entry.key)) expanded.value[entry.key] = true
     }
-    if (!apiErr?.fieldError('oldPassword') && !apiErr?.fieldError('newPassword')) {
-      pwdError.value = { old: errorMessage(e) }
-    }
-    toast.push(errorMessage(e), 'danger', traceIdOf(e))
-  } finally {
-    pwdBusy.value = false
-  }
+  },
+  { immediate: true },
+)
+
+/** 手机抽屉：锁滚动 + Esc 关闭 */
+function onNavKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') navOpen.value = false
 }
+
+watch(navOpen, (v) => {
+  if (v) {
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onNavKey)
+  } else {
+    document.body.style.overflow = ''
+    document.removeEventListener('keydown', onNavKey)
+  }
+})
+
+onMounted(() => notify.start())
+onBeforeUnmount(() => {
+  notify.stop()
+  document.body.style.overflow = ''
+  document.removeEventListener('keydown', onNavKey)
+})
 </script>
 
 <template>
   <div class="shell">
     <a class="skip-link" href="#main">跳到正文</a>
-    <header class="masthead">
-      <div class="masthead__inner">
-        <RouterLink to="/" class="wordmark" aria-label="校园 AI 服务平台 首页">
-          <!-- [logo] 学校校徽待提供；暂用字标 -->
-          <span class="wordmark__cn">校园 AI 服务平台</span>
-          <span class="wordmark__latin latin-italic">Campus Press</span>
-        </RouterLink>
 
-        <nav class="nav" aria-label="主导航">
-          <RouterLink v-for="n in items" :key="n.to" :to="n.to" class="nav__link">
-            <span>{{ n.label }}</span>
-            <span v-if="!n.ready" class="nav__soon" aria-label="即将上线">·</span>
-          </RouterLink>
-        </nav>
+    <!-- 手机顶部条：菜单、字标、通知、账号 -->
+    <header class="topbar">
+      <button type="button" class="topbar__menu" aria-label="打开菜单" @click="navOpen = true">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+      </button>
+      <RouterLink to="/ai" class="wordmark" aria-label="校园 AI 服务平台">
+        <span class="wordmark__cn">校园 AI 服务平台</span>
+      </RouterLink>
 
-        <div class="user" @keydown.esc="menuOpen = false">
-          <button
-            type="button"
-            class="user__trigger"
-            :aria-expanded="menuOpen"
-            aria-controls="user-menu"
-            @click="menuOpen = !menuOpen"
-          >
-            <span class="user__avatar" aria-hidden="true">{{ initial }}</span>
-            <span class="user__name">{{ auth.user?.displayName }}</span>
-          </button>
-          <div v-if="menuOpen" id="user-menu" class="user__menu fade-in">
-            <p class="user__who">
-              <strong>{{ auth.user?.displayName }}</strong>
-              <span class="mono">{{ auth.user?.username }}</span>
-            </p>
-            <p class="user__roles">{{ roleText }}</p>
-            <hr />
-            <button type="button" class="user__item user__item--plain" @click="openPassword">修改密码</button>
-            <button type="button" class="user__item" :disabled="loggingOut" @click="logout">
-              {{ loggingOut ? '正在退出…' : '退出登录' }}
-            </button>
-            <p class="user__note">退出会让你在所有设备上的登录同时失效。</p>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        class="bell"
+        aria-label="通知"
+        aria-haspopup="dialog"
+        :aria-expanded="notifyOpen"
+        @click="openNotify"
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path
+            d="M12 3a5 5 0 0 0-5 5v3.2l-1.6 3.2A1 1 0 0 0 6.3 16h11.4a1 1 0 0 0 .9-1.6L17 11.2V8a5 5 0 0 0-5-5Zm0 18a2.5 2.5 0 0 0 2.4-2H9.6A2.5 2.5 0 0 0 12 21Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span v-if="notify.unread" class="bell__badge mono">{{ notify.unread > 99 ? '99+' : notify.unread }}</span>
+      </button>
+
+      <UserMenu variant="bar" />
     </header>
 
-    <div v-if="menuOpen" class="scrim" aria-hidden="true" @click="menuOpen = false" />
+    <!-- 左侧主导航：桌面常驻，手机自左滑出 -->
+    <aside class="sidenav" :class="{ 'is-open': navOpen }" aria-label="主导航">
+      <RouterLink to="/ai" class="sidenav__brand">
+        <span class="sidenav__cn">校园 AI 服务平台</span>
+        <span class="sidenav__latin latin-italic">Campus Press</span>
+      </RouterLink>
+
+      <nav class="sidenav__list">
+        <template v-for="n in items" :key="isNavGroup(n) ? n.key : n.to">
+          <div v-if="isNavGroup(n)" class="nav-group">
+            <button
+              type="button"
+              class="nav-link nav-group__toggle"
+              :class="{ 'is-active': isGroupActive(n.key) }"
+              :aria-expanded="!!expanded[n.key]"
+              :aria-controls="`nav-group-${n.key}`"
+              @click="toggleGroup(n.key)"
+            >
+              <span class="nav-link__label">{{ n.label }}</span>
+              <span class="nav-link__latin">{{ n.latin }}</span>
+              <svg class="nav-group__chevron" :class="{ 'is-open': expanded[n.key] }" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <Transition name="nav-drop">
+              <div v-if="expanded[n.key]" :id="`nav-group-${n.key}`" class="nav-group__children">
+                <RouterLink
+                  v-for="child in n.children"
+                  :key="child.to"
+                  :to="child.to"
+                  class="nav-link nav-link--child"
+                  :class="{ 'is-active': isActive(child.to) }"
+                  :aria-current="isActive(child.to) ? 'page' : undefined"
+                >
+                  <span class="nav-link__label">{{ child.label }}</span>
+                  <span class="nav-link__latin">{{ child.latin }}</span>
+                </RouterLink>
+              </div>
+            </Transition>
+          </div>
+          <RouterLink
+            v-else
+            :to="n.to"
+            class="nav-link"
+            :class="{ 'is-active': isActive(n.to) }"
+            :aria-current="isActive(n.to) ? 'page' : undefined"
+          >
+            <span class="nav-link__label">{{ n.label }}</span>
+            <span class="nav-link__latin">{{ n.latin }}</span>
+            <span v-if="!n.ready" class="nav-link__soon" aria-label="即将上线">·</span>
+          </RouterLink>
+        </template>
+      </nav>
+
+      <div class="sidenav__foot">
+        <UserMenu variant="side" class="sidenav__user" />
+        <button type="button" class="bell" aria-label="通知" aria-haspopup="dialog" @click="openNotify">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="M12 3a5 5 0 0 0-5 5v3.2l-1.6 3.2A1 1 0 0 0 6.3 16h11.4a1 1 0 0 0 .9-1.6L17 11.2V8a5 5 0 0 0-5-5Zm0 18a2.5 2.5 0 0 0 2.4-2H9.6A2.5 2.5 0 0 0 12 21Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span v-if="notify.unread" class="bell__badge mono">{{ notify.unread > 99 ? '99+' : notify.unread }}</span>
+        </button>
+      </div>
+    </aside>
+
+    <div v-if="navOpen" class="navscrim" aria-hidden="true" @click="navOpen = false" />
 
     <main id="main" class="main" tabindex="-1">
       <RouterView />
     </main>
 
-    <UiDialog
-      :open="pwdOpen"
-      title="修改密码"
-      eyebrow="账户安全"
-      width="sm"
-      :dismissible="!pwdBusy"
-      @close="pwdOpen = false"
-    >
-      <div class="pwd">
-        <p class="pwd__note">
-          修改成功后，你在其他设备上的登录会立即失效。新密码至少 8 位，需包含大写字母、小写字母、数字、符号中的三类，且不能包含用户名。
-        </p>
-        <UiField
-          v-model="pwdOld"
-          label="原密码"
-          type="password"
-          autocomplete="current-password"
-          :error="pwdError.old"
-          :disabled="pwdBusy"
-          required
-        />
-        <UiField
-          v-model="pwdNew"
-          label="新密码"
-          type="password"
-          autocomplete="new-password"
-          :error="pwdError.fresh"
-          :disabled="pwdBusy"
-          required
-        />
-        <UiField
-          v-model="pwdAgain"
-          label="再输入一次新密码"
-          type="password"
-          autocomplete="new-password"
-          :error="pwdError.again"
-          :disabled="pwdBusy"
-          required
-        />
-      </div>
-      <template #footer>
-        <UiButton variant="link" :disabled="pwdBusy" @click="pwdOpen = false">取消</UiButton>
-        <UiButton variant="primary" :loading="pwdBusy" @click="submitPassword">保存新密码</UiButton>
-      </template>
-    </UiDialog>
+    <!-- 通知抽屉：点铃铛从右侧拉出，占页面一部分 -->
+    <NotificationDrawer :open="notifyOpen" @close="notifyOpen = false" />
+
+    <!-- 官方公告：未读即弹窗，关闭后进通知中心 -->
+    <AnnouncementPopup />
   </div>
 </template>
 
 <style scoped>
 .shell {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 .skip-link {
@@ -209,264 +246,282 @@ async function submitPassword() {
   top: var(--s-2);
 }
 
-/* 报头：底部一粗一细两道线，像书刊的页眉 */
-.masthead {
-  position: sticky;
+/* ---------- 左侧主导航 ---------- */
+.sidenav {
+  position: fixed;
   top: 0;
-  z-index: 50;
-  /* 用 srgb 混合：oklch 与 transparent 混合会丢失色相（hue: none），Chrome 下会偏粉 */
-  background: color-mix(in srgb, var(--paper) 94%, transparent);
-  backdrop-filter: blur(6px);
+  bottom: 0;
+  left: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  width: var(--nav-w);
+  padding: var(--s-4) 0 var(--s-3);
+  border-right: 1px solid var(--ink);
+  background: var(--paper);
+  overflow-y: auto;
+}
+
+.sidenav__brand {
+  display: grid;
+  gap: 2px;
+  margin: 0 var(--s-4) var(--s-4);
+  padding-bottom: var(--s-3);
   border-bottom: 1px solid var(--ink);
-  box-shadow: 0 3px 0 -2px var(--paper), 0 4px 0 -2px var(--rule);
-}
-
-.masthead__inner {
-  display: flex;
-  align-items: center;
-  gap: var(--s-5);
-  height: var(--masthead-h);
-  padding: 0 var(--s-5);
-}
-
-.wordmark {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
   color: var(--ink);
   text-decoration: none;
-  white-space: nowrap;
 }
 
-.wordmark__cn {
+.sidenav__cn {
   font-family: var(--font-serif-cjk);
   font-size: 17px;
   font-weight: 600;
   letter-spacing: 0.06em;
+  line-height: 1.3;
 }
 
-.wordmark__latin {
-  font-size: 15px;
+.sidenav__latin {
   color: var(--ink-2);
+  font-size: 13px;
 }
 
-.nav {
-  display: flex;
-  align-items: stretch;
-  gap: var(--s-1);
-  height: 100%;
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow-x: auto;
-  scrollbar-width: none;
+.sidenav__list {
+  display: grid;
+  gap: 1px;
 }
 
-.nav__link {
-  position: relative;
+.nav-link {
   display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 var(--s-3);
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: 9px var(--s-4);
+  border-left: 2px solid transparent;
   color: var(--ink-2);
-  font-size: var(--fs-ui-lg);
+  font-family: var(--font-serif-cjk);
+  font-size: 16px;
   text-decoration: none;
+  transition:
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+
+.nav-link__label {
   white-space: nowrap;
-  transition: color var(--t-fast) var(--ease);
 }
 
-.nav__link::after {
-  content: '';
-  position: absolute;
-  left: var(--s-3);
-  right: var(--s-3);
-  bottom: -1px;
-  height: 2px;
-  background: var(--teal);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform var(--t-mid) var(--ease);
+.nav-link__latin {
+  margin-left: auto;
+  color: var(--ink-2);
+  font-family: var(--font-serif);
+  font-size: 11px;
+  opacity: 0.55;
 }
 
-.nav__link:hover {
+.nav-link:hover {
   color: var(--ink);
+  background: color-mix(in srgb, var(--paper-deep) 55%, transparent);
 }
 
-.nav__link.router-link-active {
+.nav-link.is-active {
+  border-left-color: var(--teal);
+  background: color-mix(in srgb, var(--paper-deep) 80%, transparent);
   color: var(--ink);
+  font-weight: 600;
 }
 
-.nav__link.router-link-active::after {
-  transform: scaleX(1);
-}
-
-.nav__soon {
+.nav-link__soon {
   color: var(--rule-strong);
 }
 
-.user {
-  position: relative;
-  margin-left: auto;
-  flex: 0 0 auto;
-}
-
-.user__trigger {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: 40px;
-  padding: 0 var(--s-1);
-  border: 0;
+.nav-group__toggle {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
   background: none;
+  text-align: left;
   cursor: pointer;
 }
 
-.user__avatar {
+.nav-group__chevron {
+  flex: 0 0 auto;
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.nav-group__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.nav-group__children {
   display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--teal);
-  color: var(--paper);
-  font-family: var(--font-serif-cjk);
+}
+
+.nav-link--child {
+  padding-left: calc(var(--s-4) + 14px);
   font-size: 14px;
 }
 
-.user__name {
-  font-size: var(--fs-ui);
+.nav-link--child .nav-link__latin {
+  font-size: 10px;
 }
 
-.user__menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--s-2));
-  z-index: 60;
-  width: 248px;
-  padding: var(--s-3);
-  border: 1px solid var(--ink);
-  background: var(--paper-lift);
+.nav-drop-enter-active,
+.nav-drop-leave-active {
+  transition:
+    opacity var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+  transform-origin: top;
 }
 
-.user__menu hr {
-  margin: var(--s-3) 0 var(--s-2);
-  border: 0;
+.nav-drop-enter-from,
+.nav-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
+}
+
+.sidenav__foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: auto;
+  padding: var(--s-2) var(--s-3) 0;
   border-top: var(--hairline);
 }
 
-.user__who {
+.sidenav__user {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 让问答页这类 flex:1 的页面仍能撑满视口 */
+.main {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin: 0;
+  flex-direction: column;
+  min-height: 100vh;
+  margin-left: var(--nav-w);
 }
 
-.user__who .mono {
-  color: var(--ink-2);
-}
-
-.user__roles {
-  margin: var(--s-1) 0 0;
-  color: var(--ink-2);
-  font-size: var(--fs-small);
-}
-
-.user__item {
-  width: 100%;
-  min-height: 36px;
+/* ---------- 通知铃铛 ---------- */
+.bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
   background: none;
-  text-align: left;
-  color: var(--ochre);
+  color: var(--ink);
   cursor: pointer;
 }
 
-.user__item:hover:not(:disabled) {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.bell:hover {
+  color: var(--teal);
 }
 
-.user__item--plain {
-  color: var(--ink);
+.bell__badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--ochre);
+  color: var(--paper);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
 }
 
-.pwd {
-  display: grid;
-  gap: var(--s-4);
+/* ---------- 手机：顶部条 + 抽屉 ---------- */
+.topbar {
+  display: none;
 }
 
-.pwd__note {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: var(--fs-small);
-  line-height: 1.7;
+.navscrim {
+  display: none;
 }
 
-.user__note {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: var(--fs-small);
-}
+@media (max-width: 900px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 70;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--masthead-h);
+    padding: 0 10px;
+    /* srgb 混合：oklch 与 transparent 混会丢色相 */
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--ink);
+  }
 
-.scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-}
-
-.main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.main:focus {
-  outline: none;
-}
-
-@media (max-width: 760px) {
-  /* 窄屏：字标与账号一行，导航独占第二行——7 个入口挤在一行会滚动到看不见 */
-  .masthead__inner {
-    flex-wrap: wrap;
-    height: auto;
-    gap: 0;
-    padding: var(--s-1) var(--s-3) 0;
+  .topbar__menu {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
   }
 
   .wordmark {
-    order: 1;
-  }
-
-  .user {
-    order: 2;
-  }
-
-  .nav {
-    order: 3;
-    flex: 1 0 100%;
-    height: 44px;
-    margin-top: var(--s-1);
-    border-top: var(--hairline);
-  }
-
-  .wordmark__latin,
-  .user__name {
-    display: none;
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    margin-right: auto;
+    color: var(--ink);
+    text-decoration: none;
   }
 
   .wordmark__cn {
+    overflow: hidden;
+    font-family: var(--font-serif-cjk);
     font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .nav__link {
-    padding: 0 var(--s-2);
-    font-size: var(--fs-ui);
+  .sidenav {
+    width: min(280px, 82vw);
+    transform: translateX(-100%);
+    transition: transform 220ms var(--ease);
   }
 
-  .nav__link::after {
-    left: var(--s-2);
-    right: var(--s-2);
+  .sidenav.is-open {
+    transform: none;
+  }
+
+  /* 抽屉里不再重复铃铛与账号，顶部条已经有 */
+  .sidenav__foot {
+    display: none;
+  }
+
+  .nav-link {
+    padding: 11px var(--s-4);
+    font-size: 17px;
+  }
+
+  .navscrim {
+    position: fixed;
+    inset: 0;
+    z-index: 75;
+    display: block;
+    background: color-mix(in srgb, var(--ink) 24%, transparent);
+  }
+
+  .main {
+    margin-left: 0;
   }
 }
 </style>

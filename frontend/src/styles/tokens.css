@@ -68,7 +68,9 @@
 
   /* 版心 */
   --measure: 648px; /* 阅读区正文行宽：18px × 36 字 */
-  --masthead-h: 56px;
+  /* 主导航在左侧，桌面没有顶部报头，吸附元素直接贴顶 */
+  --nav-w: 224px;
+  --masthead-h: 0px;
 }
 
 @media (prefers-reduced-motion: reduce) {

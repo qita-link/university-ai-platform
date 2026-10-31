@@ -35,6 +35,8 @@ export interface CurrentUser {
   userId: number
   username: string
   displayName: string
+  /** 头像版本：0 表示没有头像 */
+  avatarVersion: number
   orgUnitId: number | null
   roles: string[]
   permissions: string[]
@@ -170,6 +172,8 @@ export interface ForumCategory {
   description: string | null
   sortOrder: number
   status: 'ACTIVE' | 'DISABLED'
+  /** 公告分类：只有持 forum:announce 的账号能发帖，发布后广播全员并弹窗 */
+  announcement: boolean
   postCount: number
   createdAt: string
   updatedAt: string
@@ -181,10 +185,14 @@ export interface ForumPostSummary {
   categoryName: string
   authorId: number
   authorName: string
+  /** 作者头像版本，0 表示没有头像 */
+  authorAvatarVersion: number
   title: string
   excerpt: string | null
   status: ForumPostStatus
   pinned: boolean
+  /** 置顶到期时间；null 表示长期置顶（pinned 为 false 时无意义） */
+  pinnedUntil: string | null
   commentCount: number
   lastActivityAt: string
   createdAt: string
@@ -203,8 +211,10 @@ export interface ForumComment {
   rootId: number | null
   authorId: number
   authorName: string
+  authorAvatarVersion: number
   replyToUserId: number | null
   replyToUserName: string | null
+  replyToAvatarVersion: number
   content: string
   status: 'PUBLISHED' | 'DELETED'
   createdAt: string
@@ -504,11 +514,23 @@ export interface RosterItem {
 // ---- 请假 ----
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
 
+export interface LeaveApprovalView {
+  stage: number
+  approverRole: 'TEACHER' | 'COUNSELOR' | 'ADMIN'
+  approverId: number
+  approverName: string | null
+  decision: 'APPROVED' | 'REJECTED'
+  comment: string | null
+  decidedAt: string
+}
+
 export interface LeaveView {
   id: number
   studentId: number
   studentUsername: string
   studentName: string
+  classId: number | null
+  className: string | null
   courseId: number
   courseCode: string
   courseName: string
@@ -517,15 +539,32 @@ export interface LeaveView {
   endAt: string
   reason: string
   status: LeaveStatus
+  /** 审批顺序快照：TEACHER = 任课教师，COUNSELOR = 导员 */
+  approvalOrder: string[]
+  totalStages: number
+  currentStage: number
+  currentStageRole: string
+  approvals: LeaveApprovalView[]
   reviewerId: number | null
   reviewerName: string | null
   reviewComment: string | null
   reviewedAt: string | null
-  /** 当前用户是否可以审批 / 撤销，由后端按请求者实时计算 */
+  revokedAt: string | null
+  revokeNote: string | null
+  /** 当前用户是否可以审批 / 撤销 / 销假，由后端按请求者实时计算 */
   canReview: boolean
   canCancel: boolean
+  canRevoke: boolean
   createdAt: string
   version: number
+}
+
+export interface ClassCounselorView {
+  classId: number
+  classCode: string
+  className: string
+  counselorIds: number[]
+  counselorNames: string[]
 }
 
 // ---- 管理（用户 / 组织 / 角色 / 审计） ----
@@ -1060,4 +1099,427 @@ export interface RuleTemplate {
   endPeriod: number
   /** 模板说明（后端字段名是 description，不是 note） */
   description: string
+}
+
+// ---- 成绩与绩点 ----
+export type GradeStatus = 'DRAFT' | 'PUBLISHED'
+
+export interface GradeView {
+  id: number
+  courseId: number
+  courseCode: string
+  courseName: string
+  credit: number
+  semesterId: number
+  semesterCode: string | null
+  semesterName: string | null
+  score: number | null
+  gradePoint: number | null
+  gradeLevel: string | null
+  status: GradeStatus
+  remark: string | null
+  publishedAt: string | null
+}
+
+export interface GpaSummary {
+  gpa: number
+  weightedAverage: number
+  totalCredits: number
+  earnedCredits: number
+  courseCount: number
+}
+
+export interface SemesterGradeView {
+  semesterId: number
+  semesterCode: string | null
+  semesterName: string | null
+  summary: GpaSummary
+  grades: GradeView[]
+}
+
+export interface TranscriptView {
+  overall: GpaSummary
+  latest: SemesterGradeView | null
+  semesters: SemesterGradeView[]
+}
+
+export interface GradeRosterItem {
+  studentId: number
+  username: string | null
+  displayName: string | null
+  orgUnitName: string | null
+  score: number | null
+  gradePoint: number | null
+  gradeLevel: string | null
+  status: GradeStatus
+  remark: string | null
+}
+
+export interface GradeBookView {
+  courseId: number
+  courseCode: string
+  courseName: string
+  credit: number
+  semesterId: number
+  semesterName: string | null
+  published: boolean
+  items: GradeRosterItem[]
+}
+
+export interface GradeRuleView {
+  id: number
+  name: string
+  minScore: number
+  maxScore: number
+  gradePoint: number
+  gradeLevel: string
+}
+
+// ---- 评教 ----
+export interface EvaluationTaskView {
+  courseId: number
+  courseCode: string
+  courseName: string
+  semesterId: number
+  semesterName: string | null
+  teacherId: number
+  teacherName: string | null
+  evaluated: boolean
+  myScore: number | null
+}
+
+export interface EvaluationCommentView {
+  comment: string
+  totalScore: number
+  createdAt: string
+}
+
+export interface EvaluationCourseSummary {
+  courseId: number
+  courseCode: string
+  courseName: string
+  semesterId: number
+  semesterName: string | null
+  count: number
+  avgTeaching: number
+  avgContent: number
+  avgInteraction: number
+  avgWorkload: number
+  avgTotal: number
+  comments: EvaluationCommentView[]
+}
+
+export interface EvaluationOverview {
+  totalCount: number
+  avgTotal: number
+  courses: EvaluationCourseSummary[]
+}
+
+// ---- 投诉与建议 ----
+export type FeedbackCategory = 'COMPLAINT' | 'SUGGESTION' | 'REPORT' | 'OTHER'
+export type FeedbackStatus = 'OPEN' | 'PROCESSING' | 'RESOLVED' | 'CLOSED'
+
+export interface FeedbackView {
+  id: number
+  category: FeedbackCategory
+  title: string
+  content: string
+  anonymous: boolean
+  submitterId: number | null
+  submitterName: string | null
+  status: FeedbackStatus
+  handlerName: string | null
+  reply: string | null
+  repliedAt: string | null
+  canHandle: boolean
+  createdAt: string
+}
+
+// ---- 空教室 ----
+export interface RoomView {
+  id: number | null
+  code: string
+  name: string
+  building: string | null
+  floorNo: number | null
+  capacity: number | null
+  roomType: string | null
+  features: string | null
+}
+
+export interface PeriodTimeView {
+  periodNo: number
+  startTime: string
+  endTime: string
+  section: string
+}
+
+export interface FreeSlotView {
+  date: string
+  dayOfWeek: number
+  weekNo: number
+  teachingDay: boolean
+  startPeriod: number
+  endPeriod: number
+  startTime: string
+  endTime: string
+  totalRooms: number
+  rooms: RoomView[]
+  periods: PeriodTimeView[]
+  semesterName: string | null
+}
+
+export interface FreeDaySummary {
+  date: string
+  dayOfWeek: number
+  weekNo: number
+  teachingDay: boolean
+  freeCount: number
+  totalRooms: number
+}
+
+export interface FreeWeekView {
+  from: string
+  to: string
+  startPeriod: number
+  endPeriod: number
+  startTime: string
+  endTime: string
+  days: FreeDaySummary[]
+}
+
+// ---- 考勤 ----
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE'
+export type AttendanceSessionStatus = 'DRAFT' | 'FINAL'
+
+export interface AttendanceRecordView {
+  studentId: number
+  username: string | null
+  displayName: string | null
+  orgUnitName: string | null
+  status: AttendanceStatus
+  leaveId: number | null
+  remark: string | null
+}
+
+export interface AttendanceSessionView {
+  id: number
+  courseId: number
+  courseCode: string | null
+  courseName: string | null
+  classId: number
+  className: string | null
+  sessionDate: string
+  startPeriod: number
+  endPeriod: number
+  status: AttendanceSessionStatus
+  note: string | null
+  presentCount: number
+  absentCount: number
+  lateCount: number
+  leaveCount: number
+  updatedAt: string
+}
+
+export interface AttendanceSessionDetailView {
+  session: AttendanceSessionView
+  records: AttendanceRecordView[]
+}
+
+export interface ClassTimetableSlot {
+  scheduleId: number
+  dayOfWeek: number
+  startPeriod: number
+  endPeriod: number
+  startWeek: number
+  endWeek: number
+  weekParity: string
+  classroom: string | null
+  sessionCount: number
+  absentCount: number
+}
+
+export interface ClassTimetableCourse {
+  courseId: number
+  courseCode: string
+  courseName: string
+  teacherNames: string[]
+  slots: ClassTimetableSlot[]
+  sessionCount: number
+  absentCount: number
+}
+
+export interface ClassTimetableView {
+  classId: number
+  classCode: string
+  className: string
+  semesterId: number | null
+  semesterName: string | null
+  sessionCount: number
+  absentCount: number
+  courses: ClassTimetableCourse[]
+}
+
+export interface ClassAttendanceStat {
+  studentId: number
+  username: string
+  displayName: string
+  total: number
+  present: number
+  absent: number
+  late: number
+  leave: number
+  absenceRate: number
+}
+
+export interface ClassAttendanceStatsView {
+  classId: number
+  className: string
+  semesterId: number | null
+  semesterName: string | null
+  sessionCount: number
+  students: ClassAttendanceStat[]
+}
+
+export interface ClassOptionView {
+  id: number
+  code: string
+  name: string
+}
+
+// ---- 设置 ----
+export interface SettingView {
+  key: string
+  value: string
+  description: string | null
+}
+
+export interface LeaveFlowView {
+  teacherRequired: boolean
+  counselorRequired: boolean
+  stages: string[]
+  totalStages: number
+}
+
+// ---- 通知 ----
+export type NotificationCategory =
+  | 'LEAVE'
+  | 'GRADE'
+  | 'FEEDBACK'
+  | 'ATTENDANCE'
+  | 'ROOM'
+  | 'FORUM'
+  | 'ANNOUNCEMENT'
+  | 'SYSTEM'
+export type NotificationLevel = 'INFO' | 'SUCCESS' | 'WARNING'
+
+export interface NotificationView {
+  id: number
+  category: NotificationCategory
+  level: NotificationLevel
+  title: string
+  body: string | null
+  linkUrl: string | null
+  bizType: string | null
+  bizId: number | null
+  /** 官方公告：登录后弹窗提示，关闭弹窗即视为已读 */
+  popupRequired: boolean
+  readAt: string | null
+  createdAt: string
+}
+
+// ---- 考勤申诉 ----
+export type AppealStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+export interface MyAttendanceView {
+  recordId: number
+  courseId: number
+  courseCode: string
+  courseName: string
+  sessionDate: string
+  startPeriod: number
+  endPeriod: number
+  status: AttendanceStatus
+  remark: string | null
+  appealId: number | null
+  appealStatus: AppealStatus | null
+  canAppeal: boolean
+}
+
+export interface AppealView {
+  id: number
+  recordId: number
+  studentId: number
+  studentName: string | null
+  studentUsername: string | null
+  courseId: number | null
+  courseName: string | null
+  sessionDate: string | null
+  startPeriod: number
+  endPeriod: number
+  originalStatus: AttendanceStatus | null
+  targetStatus: AttendanceStatus
+  reason: string
+  status: AppealStatus
+  reviewerName: string | null
+  reviewComment: string | null
+  reviewedAt: string | null
+  canReview: boolean
+  createdAt: string
+}
+
+// ---- 教室借用 ----
+export type RoomBookingStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+
+export interface RoomBookingView {
+  id: number
+  roomId: number
+  roomCode: string | null
+  roomName: string | null
+  building: string | null
+  applicantId: number
+  applicantName: string | null
+  bookingDate: string
+  startPeriod: number
+  endPeriod: number
+  purpose: string
+  attendees: number | null
+  contact: string | null
+  status: RoomBookingStatus
+  reviewerName: string | null
+  reviewComment: string | null
+  reviewedAt: string | null
+  canCancel: boolean
+  canReview: boolean
+  createdAt: string
+}
+
+// ---- 个人资料 ----
+export interface ProfileView {
+  userId: number
+  username: string
+  displayName: string
+  email: string | null
+  phone: string | null
+  orgUnitId: number | null
+  orgUnitName: string | null
+  roles: string[]
+  avatarVersion: number
+  lastLoginAt: string | null
+  createdAt: string | null
+}
+
+export interface ProfilePostView {
+  id: number
+  title: string
+  categoryName: string | null
+  status: ForumPostStatus
+  pinned: boolean
+  commentCount: number
+  lastActivityAt: string | null
+  createdAt: string
+  /** 内容被编辑过才有值 */
+  editedAt: string | null
+  editorName: string | null
+  editorRole: string | null
 }

@@ -25,6 +25,8 @@ public class ForumPost extends AuditableEntity {
     private String content;
     private ForumPostStatus status;
     private Boolean pinned;
+    /** 置顶到期时间；null 表示长期置顶 */
+    private LocalDateTime pinnedUntil;
     private Integer commentCount;
     private LocalDateTime lastActivityAt;
     private LocalDateTime deletedAt;

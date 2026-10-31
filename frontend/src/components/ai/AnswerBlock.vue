@@ -126,7 +126,7 @@ const metaLine = computed(() => {
       <template v-else-if="item.status === 'PENDING'">
         <p class="pending" role="status">
           <span class="pending__rule" aria-hidden="true" />
-          正在检索资料并撰写回答…
+          {{ item.content || '正在检索资料并撰写回答…' }}
         </p>
       </template>
 

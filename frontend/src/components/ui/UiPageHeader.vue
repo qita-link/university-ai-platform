@@ -9,13 +9,15 @@ withDefaults(
     latin: string
     title: string
     lede?: string
+    /** 手机端把操作按钮并到标题同一行，省掉一整行高度 */
+    compact?: boolean
   }>(),
-  { lede: '' },
+  { lede: '', compact: false },
 )
 </script>
 
 <template>
-  <header class="ph">
+  <header class="ph" :class="{ 'ph--compact': compact }">
     <div class="ph__row">
       <p class="ph__eyebrow eyebrow">
         {{ label }}<span class="ph__latin latin-italic">{{ latin }}</span>
@@ -84,5 +86,86 @@ withDefaults(
   margin-top: var(--s-3);
   color: var(--ink-2);
   font-size: var(--fs-small);
+}
+
+@media (max-width: 640px) {
+  .ph {
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+  }
+
+  /* 小标隐藏后只剩按钮，靠右才像正常的页头操作；小标在时用 auto 撑到左侧 */
+  .ph__row {
+    justify-content: flex-end;
+    min-height: 0;
+    align-items: flex-start;
+    gap: var(--s-2);
+  }
+
+  .ph__eyebrow {
+    margin-right: auto;
+  }
+
+  .ph__latin {
+    display: none;
+  }
+
+  .ph__eyebrow {
+    font-size: 11px;
+  }
+
+  .ph__title {
+    margin-top: 2px;
+    font-size: 25px;
+  }
+
+  /* 导语在手机上占掉半屏，第一眼看不到内容，直接收起 */
+  .ph__lede {
+    display: none;
+  }
+
+  .ph__meta {
+    margin-top: 6px;
+    gap: var(--s-2);
+    font-size: 11px;
+  }
+
+  .ph__actions {
+    gap: 6px;
+  }
+
+  .ph__actions :deep(.ui-btn) {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  /* 标题与操作同一行：书架「新建空间」、来信「写一封」不再单独占一行 */
+  .ph--compact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 8px;
+  }
+
+  .ph--compact .ph__row {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* 标题已经说明是哪个页面，小标在紧凑模式里只会和按钮挤在一起 */
+  .ph--compact .ph__eyebrow {
+    display: none;
+  }
+
+  .ph--compact .ph__title {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .ph--compact .ph__meta {
+    grid-column: 1 / -1;
+  }
 }
 </style>

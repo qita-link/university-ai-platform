@@ -1,0 +1,29 @@
+# =====================================================================
+# MySQL 容器配置（挂到 /etc/mysql/conf.d）
+#
+# 两个不能改错的点：
+#   1. utf8mb4 + utf8mb4_0900_ai_ci —— 应用的迁移脚本依赖这个排序规则，
+#      换成 MySQL 5.7 或 MariaDB 会在建表阶段直接失败。
+#   2. ngram_token_size=2 —— 中文全文检索的分词粒度。它是只读启动参数，
+#      必须在这里配；配错的表现是「中文搜得到记录但搜不出结果」。
+#      注意：改这个值后已建好的全文索引要重建，改完建议清库重导。
+# =====================================================================
+
+[mysqld]
+character-set-server           = utf8mb4
+collation-server               = utf8mb4_0900_ai_ci
+ngram_token_size               = 2
+
+# 与应用 DB_SESSION_TIME_ZONE / APP_TIME_ZONE 保持一致，避免页面时间差 8 小时
+default-time-zone              = '+08:00'
+
+max_connections                = 300
+innodb_buffer_pool_size        = 256M
+innodb_flush_log_at_trx_commit = 2
+
+# 容器里都是内网 IP，跳过反解省一次 DNS
+skip-name-resolve
+lower_case_table_names         = 0
+
+[client]
+default-character-set = utf8mb4

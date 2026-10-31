@@ -38,6 +38,43 @@ public final class Permissions {
     public static final String LEAVE_SUBMIT = "leave:submit";
     public static final String LEAVE_REVIEW = "leave:review";
     public static final String LEAVE_MANAGE_ALL = "leave:manage_all";
+    /** 查询超出本人审批范围的请假（学生会、教师、管理员） */
+    public static final String LEAVE_READ_ALL = "leave:read_all";
+
+    /** 查看本人课程成绩与绩点 */
+    public static final String GRADE_READ = "grade:read";
+    /** 录入/发布本人任教课程成绩 */
+    public static final String GRADE_MANAGE = "grade:manage";
+    /** 管理全部成绩与绩点规则 */
+    public static final String GRADE_MANAGE_ALL = "grade:manage_all";
+
+    /** 提交学生评教 */
+    public static final String EVALUATION_SUBMIT = "evaluation:submit";
+    /** 查看本人课程的评教统计 */
+    public static final String EVALUATION_READ = "evaluation:read";
+
+    /** 提交投诉与建议 */
+    public static final String FEEDBACK_SUBMIT = "feedback:submit";
+    /** 处理投诉与建议 */
+    public static final String FEEDBACK_HANDLE = "feedback:handle";
+
+    /** 查询空教室 */
+    public static final String CLASSROOM_READ = "classroom:read";
+
+    /** 登记本人课程考勤 */
+    public static final String ATTENDANCE_MANAGE = "attendance:manage";
+    /** 查看班级课表与考勤 */
+    public static final String ATTENDANCE_READ = "attendance:read";
+    /** 对本人考勤提出申诉 */
+    public static final String ATTENDANCE_APPEAL = "attendance:appeal";
+
+    /** 在公告分类发布官方公告（发布后广播全员） */
+    public static final String FORUM_ANNOUNCE = "forum:announce";
+
+    /** 申请借用教室 */
+    public static final String ROOM_BOOK = "room:book";
+    /** 审批教室借用 */
+    public static final String ROOM_APPROVE = "room:approve";
 
     /** 查看排课基础数据、任务、版本与全部课表 */
     public static final String SCHEDULE_READ = "schedule:read";

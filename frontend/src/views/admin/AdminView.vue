@@ -8,6 +8,7 @@ import OrgPanel from './OrgPanel.vue'
 import RolesPanel from './RolesPanel.vue'
 import AuditPanel from './AuditPanel.vue'
 import SemestersPanel from './SemestersPanel.vue'
+import SettingsPanel from './SettingsPanel.vue'
 
 /**
  * 管理工作台：用户、组织、角色与审计四件事放在同一页的四个抽屉里。
@@ -18,7 +19,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 interface TabDef {
-  key: 'users' | 'org' | 'semesters' | 'roles' | 'audit'
+  key: 'users' | 'org' | 'semesters' | 'roles' | 'audit' | 'settings'
   label: string
   anyOf: string[]
 }
@@ -29,6 +30,7 @@ const TABS: TabDef[] = [
   { key: 'semesters', label: '学期', anyOf: ['course:manage_all'] },
   { key: 'roles', label: '角色与权限', anyOf: ['role:manage'] },
   { key: 'audit', label: '审计日志', anyOf: ['audit:read'] },
+  { key: 'settings', label: '设置', anyOf: ['system:config'] },
 ]
 
 const visible = computed(() => TABS.filter((t) => auth.can(...t.anyOf)))
@@ -74,6 +76,7 @@ function go(key: string) {
     <SemestersPanel v-else-if="current === 'semesters'" />
     <RolesPanel v-else-if="current === 'roles'" />
     <AuditPanel v-else-if="current === 'audit'" />
+    <SettingsPanel v-else-if="current === 'settings'" />
   </div>
 </template>
 
@@ -126,5 +129,33 @@ function go(key: string) {
   bottom: -1px;
   height: 2px;
   background: var(--teal);
+}
+
+@media (max-width: 760px) {
+  .admin {
+    padding: var(--s-4) 16px var(--s-6);
+  }
+
+  .bar {
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    gap: 14px;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabs__btn {
+    flex: 0 0 auto;
+    font-size: 15px;
+  }
 }
 </style>

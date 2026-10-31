@@ -1,0 +1,43 @@
+# =====================================================================
+# 构建上下文排除项
+# 目的是把上下文压到最小（改一次前端不该把 target/ 和 node_modules 一起传进去），
+# 同时避免本地密钥、日志、崩溃转储被打进镜像。
+# =====================================================================
+
+# ---- 版本库与助手工件 ----
+.git
+.gitattributes
+.gitignore
+.workbuddy
+.localrun
+.idea
+.vscode
+
+# ---- 构建产物（镜像里会重新构建） ----
+target/
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+**/*.tsbuildinfo
+
+# ---- 运行时产物 ----
+logs/
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# ---- 本地密钥，绝不能进镜像 ----
+config/application-local.yml
+.env
+.env.docker
+.env.local
+
+# ---- 数据与文档素材（运行期用挂载，不参与构建） ----
+backup/
+docker/mysql/initdb/*.sql
+docs/
+*.md
+
+# ---- 系统噪声 ----
+.DS_Store
+Thumbs.db

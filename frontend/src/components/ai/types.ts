@@ -1,4 +1,4 @@
-import type { AiCitation, AiMessageView, AiChatResponse } from '@/api/types'
+import type { AgentActResponse, AiCitation, AiMessageView, AiChatResponse } from '@/api/types'
 
 /** 问答页内部使用的消息形态：统一历史消息与本次请求的返回。 */
 export interface ChatItem {
@@ -14,6 +14,8 @@ export interface ChatItem {
   errorText: string | null
   traceId: string | null
   createdAt: string | number
+  /** 办事结果（查询+动作）；空表示普通知识库问答 */
+  act?: AgentActResponse
 }
 
 export function fromMessage(m: AiMessageView): ChatItem | null {

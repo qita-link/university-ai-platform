@@ -22,4 +22,8 @@ public class LeaveQuery extends PageQuery {
     @Schema(description = "课程 ID")
     @Positive
     private Long courseId;
+
+    @Schema(description = "行政班 ID（学生会/导员按班查询）")
+    @Positive
+    private Long classId;
 }

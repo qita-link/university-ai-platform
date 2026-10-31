@@ -13,8 +13,10 @@ public record ForumCommentView(
         Long rootId,
         Long authorId,
         String authorName,
+        int authorAvatarVersion,
         Long replyToUserId,
         String replyToUserName,
+        int replyToAvatarVersion,
         String content,
         ForumCommentStatus status,
         LocalDateTime createdAt) {

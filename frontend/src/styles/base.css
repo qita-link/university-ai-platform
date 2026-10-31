@@ -218,10 +218,97 @@ samp,
   }
 }
 
-/* 窄屏报头改为两行（字标 + 账号 / 导航），
-   依赖 --masthead-h 计算吸附位置的侧栏与阅读页会一并跟随，避免压在报头下。 */
-@media (max-width: 760px) {
+/* 横向滚动容器：表格在手机上不撑破页面，改为容器内滑动 */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll > table {
+  min-width: 560px;
+}
+
+/* 手机端可折叠检索：默认只留一个放大镜，点开才展开输入框 */
+.search-toggle {
+  display: none;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.search-toggle:hover {
+  color: var(--teal);
+}
+
+.search-toggle.is-open {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  color: var(--teal);
+}
+
+.search-toggle__dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ochre);
+}
+
+/* 窄屏导航收成顶部条（左侧是抽屉），
+   依赖 --masthead-h 计算吸附位置的侧栏与阅读页会一并跟随，避免压在顶栏下。 */
+@media (max-width: 900px) {
   :root {
-    --masthead-h: 93px;
+    --masthead-h: 56px;
+  }
+}
+
+/* 手机：收紧全局留白与字号，让正文在第一屏出现 */
+@media (max-width: 640px) {
+  :root {
+    --s-5: 20px;
+    --s-6: 28px;
+    --s-7: 40px;
+    --fs-h2: 25px;
+    --fs-read: 17px;
+  }
+
+  .table-scroll > table {
+    min-width: 520px;
+  }
+
+  .search-toggle {
+    position: relative;
+    display: grid;
+    flex: 0 0 auto;
+  }
+
+  /* 只有加了 .search--collapsible 的检索会被收起，管理端的内联筛选保持原样。
+     加 body 前缀是为了盖过各页面 scoped 的 .search { display: flex }。 */
+  body .search.search--collapsible:not(.is-open) {
+    display: none;
+  }
+
+  body .search.search--collapsible.is-open {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+  }
+
+  body .search.search--collapsible .search__label {
+    display: none;
+  }
+
+  body .search.search--collapsible .search__input {
+    height: 30px;
+    font-size: 14px;
   }
 }

@@ -1,0 +1,111 @@
+# =====================================================================
+# 高校 AI 综合服务平台 —— 单机 Docker 编排
+#
+#   db    MySQL 8.0（utf8mb4_0900_ai_ci + ngram 分词）
+#   app   Spring Boot 后端（含 OR-Tools 求解器）
+#   web   Nginx + 前端静态资源，顺便把 /api 反代到 app
+#
+# 对外只暴露 web。启动：
+#   docker compose --env-file .env.docker up -d --build
+# =====================================================================
+
+name: campus-ai
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: campus-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?请在 .env.docker 里设置 DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-campus_ai}
+      MYSQL_USER: ${DB_USERNAME:-campus}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?请在 .env.docker 里设置 DB_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - db-data:/var/lib/mysql
+      # 字符集 / ngram_token_size / 时区，见文件内注释
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d:ro
+      # 首次初始化（数据目录为空）时自动执行这里的 *.sql
+      - ./docker/mysql/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      # 只绑本机，方便用客户端连进去排查；不需要就整段删掉
+      - "127.0.0.1:${DB_HOST_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: campus-ai/backend:0.1.0
+    container_name: campus-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-campus_ai}?characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-campus}
+      DB_PASSWORD: ${DB_PASSWORD:?请在 .env.docker 里设置 DB_PASSWORD}
+      DB_SESSION_TIME_ZONE: "+08:00"
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
+
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?请在 .env.docker 里设置 APP_JWT_SECRET}
+      APP_TIME_ZONE: Asia/Shanghai
+
+      # 前端由 Nginx 同源反代，不需要跨域；要单独开域名再填
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-}
+
+      # 拿到真实客户端 IP（Nginx 传来的 X-Forwarded-For），否则限流/审计里全是容器 IP
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+
+      # 空库首次启动时创建的管理员；库里有管理员时这段配置不生效
+      APP_BOOTSTRAP_ADMIN_USERNAME: ${APP_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-}
+
+      # AI 能力默认关闭；要开就在 .env.docker 里填 AI_CHAT_PROVIDER=openai
+      AI_CHAT_PROVIDER: ${AI_CHAT_PROVIDER:-none}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-gpt-4o-mini}
+
+      TZ: Asia/Shanghai
+    expose:
+      - "8080"
+    volumes:
+      - app-logs:/app/logs
+    # 有上限才能让 JAVA_OPTS 里的 MaxRAMPercentage 算出合理堆（70% ≈ 1.4G）
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    image: campus-ai/web:0.1.0
+    container_name: campus-web
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${WEB_HOST_PORT:-8088}:80"
+
+volumes:
+  db-data:
+    name: campus-ai-db-data
+  app-logs:
+    name: campus-ai-app-logs

@@ -5,6 +5,7 @@ import com.campus.platform.auth.dto.CurrentUserResponse;
 import com.campus.platform.auth.dto.LoginRequest;
 import com.campus.platform.auth.dto.LoginResponse;
 import com.campus.platform.auth.service.AuthService;
+import com.campus.platform.profile.service.ProfileService;
 import com.campus.platform.common.api.ApiResponse;
 import com.campus.platform.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,9 +33,11 @@ import java.util.TreeSet;
 public class AuthController {
 
     private final AuthService authService;
+    private final ProfileService profileService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, ProfileService profileService) {
         this.authService = authService;
+        this.profileService = profileService;
     }
 
     @Operation(summary = "登录", description = """
@@ -69,6 +72,7 @@ public class AuthController {
                 user.userId(),
                 user.username(),
                 user.displayName(),
+                profileService.avatarVersion(user.userId()),
                 user.orgUnitId(),
                 new TreeSet<>(user.roles()),
                 new TreeSet<>(user.permissions())));

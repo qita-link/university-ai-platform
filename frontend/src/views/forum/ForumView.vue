@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { forumApi } from '@/api/endpoints'
 import type { ForumCategory, ForumPostSummary } from '@/api/types'
 import { ApiError } from '@/api/http'
@@ -19,6 +19,8 @@ import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTag from '@/components/ui/UiTag.vue'
 import UiTextarea from '@/components/ui/UiTextarea.vue'
 import ForumCategoryDialog from '@/components/forum/ForumCategoryDialog.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
+import PostView from '@/views/forum/PostView.vue'
 
 /**
  * 论坛列表：左侧分类，右侧按「最近有动静」排序的帖子。
@@ -28,6 +30,42 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const clock = useClockStore()
 const router = useRouter()
+const route = useRoute()
+
+/** 帖子抽屉：点列表从右侧拉出阅读，而不是整页跳转；地址栏保留 ?post=ID 便于刷新/回退 */
+const activePostId = ref<number | null>(null)
+
+function syncPostFromQuery() {
+  const raw = Array.isArray(route.query.post) ? route.query.post[0] : route.query.post
+  const id = Number(raw)
+  activePostId.value = Number.isInteger(id) && id > 0 ? id : null
+}
+
+watch(() => route.query.post, syncPostFromQuery, { immediate: true })
+
+function openPost(id: number) {
+  void router.replace({ query: { ...route.query, post: String(id) } })
+}
+
+function closePost() {
+  const query = { ...route.query }
+  delete query.post
+  void router.replace({ query })
+}
+
+watch(activePostId, (id) => {
+  document.body.style.overflow = id ? 'hidden' : ''
+})
+
+function onDrawerKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') closePost()
+}
+
+onMounted(() => document.addEventListener('keydown', onDrawerKey))
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onDrawerKey)
+  document.body.style.overflow = ''
+})
 
 const categories = ref<ForumCategory[]>([])
 const posts = ref<ForumPostSummary[]>([])
@@ -36,11 +74,26 @@ const pages = ref(0)
 const page = ref(1)
 const activeCategory = ref<number | null>(null)
 const keyword = ref('')
+/** 手机端检索默认收起，只留放大镜 */
+const searchOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+
+function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (searchOpen.value) nextTick(() => searchInput.value?.focus())
+}
 
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 
 const canWrite = computed(() => auth.can('forum:post:write'))
+const canAnnounce = computed(() => auth.can('forum:announce'))
+/** 公告分类 id 集合：列表里据此给帖子打「公告」标 */
+const announcementIds = computed(() => new Set(categories.value.filter((c) => c.announcement).map((c) => c.id)))
+const draftIsAnnouncement = computed(() => {
+  const id = Number(draft.value.categoryId)
+  return id > 0 && announcementIds.value.has(id)
+})
 const canManageCategories = computed(() => auth.can('forum:category:manage'))
 const categoryDialog = ref(false)
 
@@ -98,7 +151,7 @@ const draft = ref({ categoryId: '', title: '', content: '' })
 const draftError = ref<{ categoryId?: string | null; title?: string | null; content?: string | null; general?: string | null }>({})
 
 const categoryOptions = computed(() =>
-  categories.value.map((c) => ({ value: String(c.id), label: c.name })),
+  categories.value.map((c) => ({ value: String(c.id), label: c.announcement ? `${c.name}（公告）` : c.name })),
 )
 
 function openCompose() {
@@ -171,11 +224,28 @@ async function submitCompose() {
             :class="{ 'is-active': activeCategory === c.id }"
             @click="selectCategory(c.id)"
           >
-            <span>{{ c.name }}</span>
-            <span class="rail__count mono">{{ c.postCount }}</span>
+            <span>
+              {{ c.name }}
+              <span v-if="c.announcement" class="rail__flag">公告</span>
+            </span>
           </button>
         </li>
       </ul>
+
+      <button
+        type="button"
+        class="search-toggle"
+        :class="{ 'is-open': searchOpen }"
+        :aria-expanded="searchOpen"
+        aria-label="搜索帖子"
+        @click="toggleSearch"
+      >
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M16 16l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        <span v-if="keyword" class="search-toggle__dot" aria-hidden="true" />
+      </button>
       <p v-if="categories.length === 0" class="rail__hint">还没有分类，管理员建好分类后就能发帖了。</p>
     </aside>
 
@@ -184,7 +254,8 @@ async function submitCompose() {
         label="论坛"
         latin="Letters"
         title="来信"
-        lede="同学之间的问答、经验与提醒。发帖即公开，请注意个人信息；版主可以隐藏不当内容。"
+        compact
+        lede="同学之间的问答、经验与提醒。发帖即公开，请注意个人信息；版主可以隐藏不当内容。公告分类由管理员发布，会同时推送站内信并弹窗。"
       >
         <template #actions>
           <UiButton v-if="canManageCategories" size="sm" @click="categoryDialog = true">管理分类</UiButton>
@@ -198,10 +269,16 @@ async function submitCompose() {
         </template>
       </UiPageHeader>
 
-      <form class="search" role="search" @submit.prevent="search">
+      <form
+        class="search search--collapsible"
+        :class="{ 'is-open': searchOpen }"
+        role="search"
+        @submit.prevent="search"
+      >
         <label class="search__label" for="forum-search">检索</label>
         <input
           id="forum-search"
+          ref="searchInput"
           v-model="keyword"
           class="search__input"
           type="search"
@@ -230,25 +307,50 @@ async function submitCompose() {
 
       <ol v-else class="posts">
         <li v-for="p in posts" :key="p.id" class="post" :class="{ 'is-pinned': p.pinned }">
-          <RouterLink class="post__link" :to="{ name: 'post', params: { id: p.id } }">
+          <a class="post__link" :href="`/forum/posts/${p.id}`" @click.prevent="openPost(p.id)">
             <p class="post__tags">
               <UiTag v-if="p.pinned" tone="ochre">置顶</UiTag>
+              <UiTag v-if="announcementIds.has(p.categoryId)" tone="ochre">公告</UiTag>
               <span class="post__cat">{{ p.categoryName }}</span>
               <span v-if="p.status === 'HIDDEN'" class="post__hidden">已隐藏</span>
             </p>
             <h2 class="post__title">{{ p.title }}</h2>
             <p class="post__excerpt">{{ p.excerpt || '（无摘要）' }}</p>
             <p class="post__meta">
+              <UserAvatar
+                :user-id="p.authorId"
+                :version="p.authorAvatarVersion"
+                :name="p.authorName"
+                :size="20"
+              />
               <span>{{ p.authorName }}</span>
               <span class="mono">{{ formatShort(p.lastActivityAt ?? p.createdAt, clock.now) }}</span>
               <span class="post__replies mono">{{ p.commentCount }} 回复</span>
             </p>
-          </RouterLink>
+          </a>
         </li>
       </ol>
 
       <UiPager v-if="pages > 1" :page="page" :pages="pages" :total="total" @change="page = $event" />
     </section>
+
+    <!-- 帖子抽屉：从右侧拉出，列表留在原处 -->
+    <Teleport to="body">
+      <Transition name="pdrawer">
+        <div v-if="activePostId" class="pdrawer" role="presentation">
+          <div class="pdrawer__scrim" @click="closePost" />
+          <aside class="pdrawer__panel" role="dialog" aria-modal="true" aria-label="帖子">
+            <header class="pdrawer__bar">
+              <span class="eyebrow">论坛 · Letter</span>
+              <button type="button" class="pdrawer__close" aria-label="关闭帖子" @click="closePost">×</button>
+            </header>
+            <div class="pdrawer__body">
+              <PostView :post-id="activePostId" embedded @close="closePost" />
+            </div>
+          </aside>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- 分类管理 -->
     <ForumCategoryDialog
@@ -276,11 +378,24 @@ async function submitCompose() {
           hint="支持 Markdown。写清楚背景与具体问题，更容易得到回答。"
           placeholder="我在选课时遇到……"
         />
+        <p v-if="draftIsAnnouncement" class="form__warn">
+          <template v-if="canAnnounce">
+            这是公告分类：发布后会以弹窗和站内信通知全校，请确认内容已定稿。
+          </template>
+          <template v-else>这是公告分类，只有管理员可以发布，换个分类再发。</template>
+        </p>
         <p v-if="draftError.general" class="form__err" role="alert">{{ draftError.general }}</p>
       </div>
       <template #footer>
         <UiButton variant="link" :disabled="composeBusy" @click="composeOpen = false">取消</UiButton>
-        <UiButton variant="primary" :loading="composeBusy" @click="submitCompose">发布</UiButton>
+        <UiButton
+          variant="primary"
+          :loading="composeBusy"
+          :disabled="draftIsAnnouncement && !canAnnounce"
+          @click="submitCompose"
+        >
+          {{ draftIsAnnouncement ? '发布公告' : '发布' }}
+        </UiButton>
       </template>
     </UiDialog>
   </div>
@@ -290,7 +405,7 @@ async function submitCompose() {
 .forum {
   --rail-w: 208px;
   display: grid;
-  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--rail-w);
   align-items: start;
   width: 100%;
   max-width: 1240px;
@@ -302,6 +417,8 @@ async function submitCompose() {
 .rail {
   position: sticky;
   top: calc(var(--masthead-h) + var(--s-4));
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .rail__title {
@@ -325,7 +442,7 @@ async function submitCompose() {
   min-height: 34px;
   padding: 0 var(--s-2);
   border: 0;
-  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
   background: none;
   color: var(--ink-2);
   font-family: var(--font-serif-cjk);
@@ -344,14 +461,9 @@ async function submitCompose() {
 }
 
 .rail__item.is-active {
-  border-left-color: var(--teal);
+  border-right-color: var(--teal);
   color: var(--ink);
   font-weight: 600;
-}
-
-.rail__count {
-  font-size: 11px;
-  color: var(--ink-2);
 }
 
 .rail__hint {
@@ -363,6 +475,8 @@ async function submitCompose() {
 }
 
 .body {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
 }
 
@@ -503,9 +617,31 @@ async function submitCompose() {
   font-size: var(--fs-small);
 }
 
+.form__warn {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border-left: 2px solid var(--ochre);
+  background: color-mix(in srgb, var(--ochre) 8%, transparent);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  line-height: 1.7;
+}
+
 @media (max-width: 900px) {
   .forum {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail,
+  .body {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .rail,
+  .body {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .rail {
@@ -521,13 +657,267 @@ async function submitCompose() {
   .rail__item {
     width: auto;
     gap: var(--s-1);
-    border-left: 0;
+    border-right: 0;
     border-bottom: 2px solid transparent;
   }
 
   .rail__item.is-active {
-    border-left: 0;
+    border-right: 0;
     border-bottom-color: var(--teal);
+  }
+}
+
+/* 手机：分类单行横滑、隐藏摘要，第一屏尽量多列几封 */
+@media (max-width: 640px) {
+  .forum {
+    padding: var(--s-3) 14px var(--s-6);
+    gap: 8px;
+  }
+
+  .rail {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rail__title {
+    display: none;
+  }
+
+  .rail__list {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  }
+
+  .rail__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rail__item {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .body :deep(.ph) {
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+
+  .body :deep(.ph__eyebrow) {
+    display: none;
+  }
+
+  .body :deep(.ph__title) {
+    font-size: 22px;
+  }
+
+  .post__link {
+    padding: 10px 0;
+  }
+
+  .post__tags {
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+
+  .post__cat {
+    font-size: 10px;
+  }
+
+  .post__title {
+    font-size: 17px;
+    line-height: 1.35;
+  }
+
+  .post__excerpt {
+    display: none;
+  }
+
+  .post__meta {
+    gap: 10px;
+    margin-top: 3px;
+    font-size: 11px;
+  }
+}
+
+/* ---------- 帖子抽屉 ---------- */
+.pdrawer {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+}
+
+.pdrawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+
+.pdrawer__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 92vw);
+  height: 100dvh;
+  border-left: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.pdrawer-enter-active .pdrawer__panel,
+.pdrawer-leave-active .pdrawer__panel {
+  transition: transform 240ms var(--ease);
+}
+
+.pdrawer-enter-active .pdrawer__scrim,
+.pdrawer-leave-active .pdrawer__scrim {
+  transition: opacity 200ms var(--ease);
+}
+
+.pdrawer-enter-from .pdrawer__panel,
+.pdrawer-leave-to .pdrawer__panel {
+  transform: translateX(100%);
+}
+
+.pdrawer-enter-from .pdrawer__scrim,
+.pdrawer-leave-to .pdrawer__scrim {
+  opacity: 0;
+}
+
+.pdrawer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--s-4);
+  border-bottom: var(--hairline);
+}
+
+.pdrawer__close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pdrawer__close:hover {
+  color: var(--ink);
+}
+
+.pdrawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--s-4);
+}
+
+@media (max-width: 640px) {
+  .pdrawer__panel {
+    width: 100vw;
+  }
+
+  .pdrawer__body {
+    padding: 0 14px;
+  }
+}
+
+/* ---------- 帖子抽屉 ---------- */
+.pdrawer {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+}
+
+.pdrawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+
+.pdrawer__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 92vw);
+  height: 100dvh;
+  border-left: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.pdrawer-enter-active .pdrawer__panel,
+.pdrawer-leave-active .pdrawer__panel {
+  transition: transform 240ms var(--ease);
+}
+
+.pdrawer-enter-active .pdrawer__scrim,
+.pdrawer-leave-active .pdrawer__scrim {
+  transition: opacity 200ms var(--ease);
+}
+
+.pdrawer-enter-from .pdrawer__panel,
+.pdrawer-leave-to .pdrawer__panel {
+  transform: translateX(100%);
+}
+
+.pdrawer-enter-from .pdrawer__scrim,
+.pdrawer-leave-to .pdrawer__scrim {
+  opacity: 0;
+}
+
+.pdrawer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--s-4);
+  border-bottom: var(--hairline);
+}
+
+.pdrawer__close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pdrawer__close:hover {
+  color: var(--ink);
+}
+
+.pdrawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--s-4);
+}
+
+@media (max-width: 640px) {
+  .pdrawer__panel {
+    width: 100vw;
+  }
+
+  .pdrawer__body {
+    padding: 0 14px;
   }
 }
 </style>

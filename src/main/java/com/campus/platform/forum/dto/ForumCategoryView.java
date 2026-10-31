@@ -12,6 +12,7 @@ public record ForumCategoryView(
         String description,
         int sortOrder,
         ForumCategoryStatus status,
+        boolean announcement,
         long postCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {

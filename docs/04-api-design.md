@@ -827,3 +827,170 @@
 | selectCourse / dropCourse | `CourseSelectionService` | 是 |
 | submitLeaveRequest / reviewLeaveRequest | `LeaveRequestService` | 是 |
 | createCourse / updateCourse / updateCourseSchedule | `CourseService` / `CourseScheduleService` | 是 |
+| findFreeClassrooms / getMyGrades | `ClassroomService` / `GradeService` | 否 |
+
+
+## 5. 校务服务接口（V10）
+
+统一前缀 `/api/v1`，响应仍为 `ApiResponse`。权限点见 `docs/14-grades-leave-attendance.md` 第 3 节。
+
+### 5.1 成绩与绩点
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/grades/me` | 本人已发布成绩单：总 GPA、加权均分、按学期分组 |
+| GET | `/grades/rules` | 绩点换算规则 |
+| GET | `/grades/course/{courseId}` | 课程成绩册（任课教师/管理员） |
+| PUT | `/grades/course/{courseId}` | 批量保存草稿（`items: [{studentId, score, remark}]`） |
+| POST | `/grades/course/{courseId}/publish` | 发布；要求全部选课学生已录分数 |
+
+### 5.2 评教
+
+`GET /evaluations/tasks`、`POST /evaluations`、`GET /evaluations/course/{courseId}`、`GET /evaluations/me`。
+同一学生对同一课程同一教师只能提交一次，重复返回 409。
+
+### 5.3 校长信箱（投诉与建议）
+
+`POST /feedbacks`、`GET /feedbacks/me`（全员 `feedback:submit`）、`GET /feedbacks`（**仅 ADMIN 角色 + `feedback:handle`**）、
+`GET /feedbacks/{id}`（本人或系统管理员）、`POST /feedbacks/{id}/reply`（仅 ADMIN，状态 + 回复）。
+V15 起权限点归入 `mailbox` 模块；处理反馈在 `@PreAuthorize` 与 Service 双重校验 ADMIN 角色，
+即使将来把 `feedback:handle` 分给其他角色，非管理员也无法访问处理接口。
+
+### 5.4 空教室
+
+`GET /classrooms/free?date&startPeriod&endPeriod&minCapacity&building&roomType`、
+`GET /classrooms/week?from&startPeriod&endPeriod...`。
+占用取「已发布 `sch_assignment`」与「`course_schedule`」的并集；不传日期取今天，不传节次取当前节次。
+
+### 5.5 请假（V10 扩展）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/leave-requests/me` | 本人请假（含审批流水、销假状态） |
+| GET | `/leave-requests/to-review` | 当前环节轮到我审批的申请 |
+| GET | `/leave-requests/all` | `leave:read_all`：学生会/管理员全部，教师任教课程与所带班级 |
+| GET | `/leave-requests/{id}` | 详情（申请人、教师、导员、学生会、管理员） |
+| POST | `/leave-requests/{id}/approve` / `reject` | 逐级审批；未到最后一级时状态仍为 PENDING |
+| POST | `/leave-requests/{id}/cancel` | 申请人撤销（仅 PENDING） |
+| POST | `/leave-requests/{id}/revoke` | 销假（仅 APPROVED 且未销假） |
+| GET | `/leave-requests/counselors` | 班级导员列表（`leave:manage_all`） |
+| PUT | `/leave-requests/counselors/{classId}` | 配置导员（传空数组清空） |
+
+### 5.6 班级考勤
+
+`GET /attendance/classes`、`GET /attendance/classes/{classId}/timetable`、
+`GET /attendance/classes/{classId}/stats`、`GET /attendance/sessions`、
+`POST /attendance/sessions`、`GET /attendance/sessions/{id}`、
+`PUT /attendance/sessions/{id}`、`POST /attendance/sessions/{id}/finalize`。
+
+### 5.7 设置
+
+`GET /settings`、`PUT /settings/{key}`（`system:config`）、`GET /settings/leave-flow`（所有登录用户）。
+
+### 5.8 AI 工具补充
+
+| 工具 | 复用 | 需要确认 |
+|---|---|---|
+| findFreeClassrooms | `ClassroomService.free` | 否 |
+| getMyGrades | `GradeService.transcript` | 否 |
+
+
+## 6. 通知、考勤申诉与教室借用接口（V11）
+
+### 6.1 通知
+
+`GET /notifications`（`unreadOnly` + 分页）、`GET /notifications/unread-count`、
+`POST /notifications/{id}/read`、`POST /notifications/read-all`、
+`GET /notifications/deliveries`（`system:config`，查看邮件/微信投递状态）。
+
+### 6.2 考勤申诉
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/attendance/me` | 本人考勤明细（含申诉状态、是否可申诉） |
+| POST | `/attendance/appeals` | 提交申诉（`recordId/reason/targetStatus`） |
+| GET | `/attendance/appeals/me` | 我的申诉 |
+| GET | `/attendance/appeals` | 待我复核（按权限与数据归属过滤） |
+| POST | `/attendance/appeals/{id}/decide` | 通过/驳回；通过时改考勤状态 |
+| POST | `/attendance/sessions/{id}/sync-roster` | 把新入班学生补进旧场次 |
+
+### 6.3 教室借用
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/room-bookings` | 申请借用（`room:book`） |
+| GET | `/room-bookings/me` | 我的借用 |
+| GET | `/room-bookings` | 待审批（`room:approve`，默认 PENDING） |
+| POST | `/room-bookings/{id}/decide` | 通过/驳回；通过前再次校验冲突 |
+| POST | `/room-bookings/{id}/cancel` | 取消（本人、PENDING） |
+
+## 7. 论坛通知与公告接口（V12）
+
+### 7.1 通知扩展
+
+| 方法 | 路径 | 变更 |
+|---|---|---|
+| GET | `/notifications` | 新增 `category` 过滤（`FORUM` / `ANNOUNCEMENT` 等） |
+| GET | `/notifications/popups` | 未读且 `popup_required=true` 的公告，`order by id`，默认最多 5 条 |
+| POST | `/notifications/{id}/read` | 语义扩展为「已读即已确认」，关闭弹窗时调用 |
+
+`NotificationView` 新增 `popupRequired: boolean`。
+
+### 7.2 论坛
+
+| 方法 | 路径 | 变更 |
+|---|---|---|
+| POST | `/forum/posts` | 公告分类发帖需 `forum:announce`，成功后广播 `ANNOUNCEMENT` 站内信 |
+| PUT | `/forum/posts/{id}` | 目标分类或原分类为公告分类时同样校验 `forum:announce` |
+| POST | `/forum/categories` | 请求体新增 `announcement?: boolean` |
+| PUT | `/forum/categories/{id}` | 同上；不传则保持原值 |
+| PATCH | `/forum/posts/{id}/status` | 隐藏/恢复/置顶/取消置顶会通知作者 |
+| POST | `/forum/posts/{id}/comments` | 评论通知作者，回复额外通知被回复人 |
+| DELETE | `/forum/posts/{id}`、`/forum/comments/{id}` | 版主删除时通知原作者 |
+
+`ForumCategoryView` 新增 `announcement: boolean`。
+
+## 8. 论坛限时置顶（V13）
+
+`PATCH /forum/posts/{id}/status` 请求体扩展：
+
+```json
+{ "pinned": true, "pinnedDays": 7, "reason": "置顶一周" }
+```
+
+| 字段 | 说明 |
+|---|---|
+| `pinned` | 是否置顶；不传表示不改置顶，只改状态 |
+| `pinnedDays` | 置顶天数：`0` 长期置顶，不传默认 7 天，上限 90（`@Max`，越界 400） |
+
+响应体（`ForumPostSummaryView` / `ForumPostDetailView`）新增 `pinnedUntil`；
+置顶过期后返回 `pinned = false, pinnedUntil = null`，列表排序也按「有效置顶」计算。
+
+## 9. 个人资料接口（V14）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/profile` | 我的资料：学号/工号、姓名、组织、角色、头像版本、最近登录 |
+| POST | `/profile/avatar` | multipart `file`，PNG/JPEG/WebP ≤1.5MB；成功后版本自增 |
+| DELETE | `/profile/avatar` | 删除头像，回到姓名首字 |
+| GET | `/profile/avatar/{userId}` | 头像二进制；需登录；没有头像返回 404；`Cache-Control: private, max-age=600` |
+| GET | `/profile/posts` | 我发过的帖子（含被隐藏，不含已删除），分页 |
+
+`/auth/me` 与登录响应的 `user` 增加 `avatarVersion`；改密继续用 `PUT /auth/password`（返回新令牌），
+退出继续用 `POST /auth/logout`。
+
+### 9.1 头像与作者信息（本轮补充）
+
+论坛列表/详情/评论的响应都带上 `authorAvatarVersion`（评论还有 `replyToAvatarVersion`），
+0 表示没有头像；前端据此用 `/profile/avatar/{userId}?v={version}` 拉图。
+
+`GET /profile/posts` 的每一项增加：
+
+| 字段 | 说明 |
+|---|---|
+| `createdAt` | 发布时间（列表展示「发布于 …」） |
+| `editedAt` | 内容被编辑过才有值；用 `version > 0` 判断，评论/置顶不会误报 |
+| `editorName` | 最近一次编辑者姓名（作者自己改就是本人） |
+| `editorRole` | 编辑者主要角色编码（ADMIN > TEACHER > STUDENT_UNION > STUDENT） |
+
+编辑与删除沿用论坛接口：`PUT /forum/posts/{id}`（作者或版主，需带 `version`）、`DELETE /forum/posts/{id}`。

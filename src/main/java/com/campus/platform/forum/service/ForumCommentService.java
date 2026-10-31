@@ -20,6 +20,10 @@ import com.campus.platform.forum.entity.ForumPost;
 import com.campus.platform.forum.entity.ForumPostStatus;
 import com.campus.platform.forum.mapper.ForumCommentMapper;
 import com.campus.platform.forum.mapper.ForumPostMapper;
+import com.campus.platform.notification.entity.NotificationCategory;
+import com.campus.platform.notification.entity.NotificationLevel;
+import com.campus.platform.notification.service.NotificationService;
+import com.campus.platform.setting.service.SettingService;
 import com.campus.platform.security.AuthenticatedUser;
 import com.campus.platform.security.Permissions;
 import com.campus.platform.user.entity.SysUser;
@@ -56,17 +60,22 @@ public class ForumCommentService {
     private final ForumCategoryService categoryService;
     private final ForumAccessService accessService;
     private final SysUserMapper userMapper;
+    private final NotificationService notificationService;
+    private final SettingService settingService;
     private final AuditService auditService;
     private final Clock clock;
 
     public ForumCommentService(ForumCommentMapper commentMapper, ForumPostMapper postMapper,
                                ForumCategoryService categoryService, ForumAccessService accessService,
-                               SysUserMapper userMapper, AuditService auditService, Clock clock) {
+                               SysUserMapper userMapper, NotificationService notificationService,
+                               SettingService settingService, AuditService auditService, Clock clock) {
         this.commentMapper = commentMapper;
         this.postMapper = postMapper;
         this.categoryService = categoryService;
         this.accessService = accessService;
         this.userMapper = userMapper;
+        this.notificationService = notificationService;
+        this.settingService = settingService;
         this.auditService = auditService;
         this.clock = clock;
     }
@@ -110,12 +119,13 @@ public class ForumCommentService {
             userIds.add(c.getReplyToUserId());
         });
         Map<Long, String> names = namesOfUsers(userIds);
+        Map<Long, Integer> avatars = avatarVersionsOf(userIds);
 
         List<ForumCommentThreadView> items = rootList.stream()
                 .map(root -> new ForumCommentThreadView(
-                        view(root, names),
+                        view(root, names, avatars),
                         repliesByRoot.getOrDefault(root.getId(), List.of()).stream()
-                                .map(reply -> view(reply, names)).toList()))
+                                .map(reply -> view(reply, names, avatars)).toList()))
                 .toList();
         return new PageResult<>(items, roots.getTotal(), roots.getCurrent(), roots.getSize(), roots.getPages());
     }
@@ -160,7 +170,10 @@ public class ForumCommentService {
         audit("FORUM_COMMENT_CREATE", comment.getId(), "postId", postId,
                 "parentId", comment.getParentId(), "rootId", comment.getRootId());
         String replyToName = parent == null ? null : nameOf(parent.getAuthorId());
-        return view(comment, user.displayName(), replyToName);
+        notifyNewComment(user, post, comment, parent);
+        int authorAvatar = avatarVersionOf(comment.getAuthorId());
+        int replyAvatar = avatarVersionOf(comment.getReplyToUserId());
+        return view(comment, user.displayName(), authorAvatar, replyToName, replyAvatar);
     }
 
     /**
@@ -193,18 +206,87 @@ public class ForumCommentService {
         }
         audit("FORUM_COMMENT_DELETE", commentId, "postId", comment.getPostId(),
                 "removedCount", removed, "cascade", cascade);
+        if (!user.userId().equals(comment.getAuthorId())
+                && settingService.getBool("forum.notify.moderate", true)) {
+            notificationService.notify(comment.getAuthorId(), NotificationCategory.FORUM,
+                    NotificationLevel.WARNING, "你的评论被删除",
+                    "你在《" + post.getTitle() + "》下的评论已被版主删除。",
+                    "/forum/posts/" + post.getId(), "FORUM_COMMENT", commentId);
+        }
     }
 
-    private ForumCommentView view(ForumComment c, Map<Long, String> names) {
-        return new ForumCommentView(c.getId(), c.getPostId(), c.getParentId(), c.getRootId(),
-                c.getAuthorId(), names.get(c.getAuthorId()), c.getReplyToUserId(),
-                names.get(c.getReplyToUserId()), c.getContent(), c.getStatus(), c.getCreatedAt());
+    /**
+     * 论坛互动通知：帖子作者收到「新评论」，被回复人收到「有人回复你」。
+     * 同一个人只收到一条：自己回复自己的评论、或作者自己回复时不会自我打扰。
+     */
+    private void notifyNewComment(AuthenticatedUser actor, ForumPost post, ForumComment comment, ForumComment parent) {
+        String text = excerpt(comment.getContent(), 80);
+        String link = "/forum/posts/" + post.getId();
+        if (parent != null) {
+            Long replyTo = parent.getAuthorId();
+            if (replyTo != null && !replyTo.equals(actor.userId())
+                    && settingService.getBool("forum.notify.reply", true)) {
+                notificationService.notify(replyTo, NotificationCategory.FORUM, NotificationLevel.INFO,
+                        actor.displayName() + " 回复了你的评论",
+                        "在《" + post.getTitle() + "》：" + text, link, "FORUM_POST", post.getId());
+            }
+            if (Objects.equals(replyTo, post.getAuthorId())) {
+                return;
+            }
+        }
+        if (!Objects.equals(post.getAuthorId(), actor.userId())
+                && settingService.getBool("forum.notify.comment", true)) {
+            notificationService.notify(post.getAuthorId(), NotificationCategory.FORUM, NotificationLevel.INFO,
+                    "你的帖子有新评论",
+                    actor.displayName() + " 在《" + post.getTitle() + "》下评论：" + text,
+                    link, "FORUM_POST", post.getId());
+        }
     }
 
-    private ForumCommentView view(ForumComment c, String authorName, String replyToName) {
+    private static String excerpt(String content, int max) {
+        if (content == null) {
+            return "";
+        }
+        String s = content.replaceAll("\\s+", " ").trim();
+        int length = s.codePointCount(0, s.length());
+        return length <= max ? s : s.substring(0, s.offsetByCodePoints(0, max)) + "…";
+    }
+
+    private ForumCommentView view(ForumComment c, Map<Long, String> names, Map<Long, Integer> avatars) {
         return new ForumCommentView(c.getId(), c.getPostId(), c.getParentId(), c.getRootId(),
-                c.getAuthorId(), authorName, c.getReplyToUserId(), replyToName,
+                c.getAuthorId(), names.get(c.getAuthorId()),
+                avatars.getOrDefault(c.getAuthorId(), 0),
+                c.getReplyToUserId(), names.get(c.getReplyToUserId()),
+                avatars.getOrDefault(c.getReplyToUserId(), 0),
                 c.getContent(), c.getStatus(), c.getCreatedAt());
+    }
+
+    private ForumCommentView view(ForumComment c, String authorName, int authorAvatar,
+                                  String replyToName, int replyAvatar) {
+        return new ForumCommentView(c.getId(), c.getPostId(), c.getParentId(), c.getRootId(),
+                c.getAuthorId(), authorName, authorAvatar,
+                c.getReplyToUserId(), replyToName, replyAvatar,
+                c.getContent(), c.getStatus(), c.getCreatedAt());
+    }
+
+    private int avatarVersionOf(Long userId) {
+        return avatarVersionsOf(userId == null ? List.of() : List.of(userId)).getOrDefault(userId, 0);
+    }
+
+    private Map<Long, Integer> avatarVersionsOf(Collection<Long> userIds) {
+        Set<Long> ids = new HashSet<>();
+        userIds.forEach(id -> {
+            if (id != null && id > 0) {
+                ids.add(id);
+            }
+        });
+        Map<Long, Integer> versions = new HashMap<>();
+        if (ids.isEmpty()) {
+            return versions;
+        }
+        userMapper.selectAvatarVersions(ids)
+                .forEach(row -> versions.put(row.getId(), row.getAvatarVersion() == null ? 0 : row.getAvatarVersion()));
+        return versions;
     }
 
     private String nameOf(Long userId) {

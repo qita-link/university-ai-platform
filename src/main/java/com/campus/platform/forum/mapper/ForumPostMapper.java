@@ -45,7 +45,7 @@ public interface ForumPostMapper extends BaseMapper<ForumPost> {
             <if test="query != null and query != ''">
                AND MATCH(p.title, p.content) AGAINST(#{query} IN BOOLEAN MODE) > 0
             </if>
-             ORDER BY p.pinned DESC,
+             ORDER BY (p.pinned = TRUE AND (p.pinned_until IS NULL OR p.pinned_until > NOW(3))) DESC,
             <if test="query != null and query != ''">
                       score DESC,
             </if>

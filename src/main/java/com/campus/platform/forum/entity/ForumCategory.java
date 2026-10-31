@@ -15,4 +15,6 @@ public class ForumCategory extends AuditableEntity {
     private String description;
     private Integer sortOrder;
     private ForumCategoryStatus status;
+    /** 公告分类：发帖需要 forum:announce，发布后广播全员并弹窗 */
+    private Boolean announcement;
 }

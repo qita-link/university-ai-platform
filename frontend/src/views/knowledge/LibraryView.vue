@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { knowledgeApi } from '@/api/endpoints'
 import type { KnowledgeCategory, SpaceView } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
@@ -34,6 +34,14 @@ const loading = ref(true)
 const loadError = ref<string | null>(null)
 const activeCategory = ref<number | null>(null)
 const keyword = ref('')
+/** 手机端检索默认收起，只留放大镜 */
+const searchOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+
+function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (searchOpen.value) nextTick(() => searchInput.value?.focus())
+}
 
 const canCreate = computed(() => auth.can('kb:space:create', 'kb:space:manage_all'))
 const canManageCategories = computed(() => auth.can('kb:category:manage'))
@@ -201,6 +209,21 @@ async function submitCreate() {
 
       <p v-if="flatCategories.length === 0" class="rail__hint">还没有分类。建好分类后，书会按类归架。</p>
 
+      <button
+        type="button"
+        class="search-toggle"
+        :class="{ 'is-open': searchOpen }"
+        :aria-expanded="searchOpen"
+        aria-label="搜索空间"
+        @click="toggleSearch"
+      >
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M16 16l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        <span v-if="keyword" class="search-toggle__dot" aria-hidden="true" />
+      </button>
+
       <UiButton
         v-if="canManageCategories"
         size="sm"
@@ -218,6 +241,7 @@ async function submitCreate() {
         label="知识库"
         latin="Library"
         title="书架"
+        compact
         lede="这里存放全校共享的文档。每一本都可以被问答引用；是否可读，取决于空间对你开放的层级。"
       >
         <template #actions>
@@ -229,10 +253,16 @@ async function submitCreate() {
         </template>
       </UiPageHeader>
 
-      <form class="search" role="search" @submit.prevent="search">
+      <form
+        class="search search--collapsible"
+        :class="{ 'is-open': searchOpen }"
+        role="search"
+        @submit.prevent="search"
+      >
         <label class="search__label" for="kb-search">检索</label>
         <input
           id="kb-search"
+          ref="searchInput"
           v-model="keyword"
           class="search__input"
           type="search"
@@ -275,8 +305,8 @@ async function submitCreate() {
               </UiTag>
               <span class="space__access">{{ ACCESS_LABEL[s.accessLevel] ?? s.accessLevel }}</span>
               <span class="space__members mono">{{ s.memberCount }} 位成员</span>
+              <span class="space__time">{{ formatDateTime(s.updatedAt) }} 更新</span>
             </p>
-            <p class="space__time">更新于 {{ formatDateTime(s.updatedAt) }}</p>
           </RouterLink>
         </li>
       </ul>
@@ -324,7 +354,7 @@ async function submitCreate() {
 .library {
   --rail-w: 208px;
   display: grid;
-  grid-template-columns: var(--rail-w) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--rail-w);
   align-items: start;
   width: 100%;
   max-width: 1240px;
@@ -337,6 +367,8 @@ async function submitCreate() {
 .rail {
   position: sticky;
   top: calc(var(--masthead-h) + var(--s-4));
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .rail__title {
@@ -359,7 +391,7 @@ async function submitCreate() {
   min-height: 34px;
   padding: 0 var(--s-2);
   border: 0;
-  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
   background: none;
   color: var(--ink-2);
   font-family: var(--font-serif-cjk);
@@ -378,7 +410,7 @@ async function submitCreate() {
 }
 
 .rail__item.is-active {
-  border-left-color: var(--teal);
+  border-right-color: var(--teal);
   color: var(--ink);
   font-weight: 600;
 }
@@ -402,6 +434,8 @@ async function submitCreate() {
 
 /* ---------- 书架 ---------- */
 .body {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
 }
 
@@ -533,10 +567,10 @@ async function submitCreate() {
 }
 
 .space__time {
-  margin: var(--s-1) 0 0;
   color: var(--ink-2);
   font-size: 11px;
   opacity: 0.8;
+  white-space: nowrap;
 }
 
 .form {
@@ -555,29 +589,175 @@ async function submitCreate() {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .rail,
+  .body {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .rail,
+  .body {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
   .rail {
     position: static;
   }
 
   .rail__list {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1);
+    flex-wrap: nowrap;
+    gap: var(--s-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .rail__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rail__item {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .rail__item {
     width: auto;
-    border-left: 0;
+    border-right: 0;
     border-bottom: 2px solid transparent;
   }
 
   .rail__item.is-active {
-    border-left: 0;
+    border-right: 0;
     border-bottom-color: var(--teal);
   }
 
   .rail__item.is-child {
     padding-left: var(--s-2);
+  }
+}
+
+/* 桌面：更新时间单独一行，避免和成员数挤在一起 */
+@media (min-width: 641px) {
+  .space__foot {
+    flex-wrap: wrap;
+  }
+
+  .space__time {
+    flex: 0 0 100%;
+    margin-top: 4px;
+  }
+}
+
+/* 桌面：更新时间单独一行，避免和成员数挤在一起 */
+@media (min-width: 641px) {
+  .space__foot {
+    flex-wrap: wrap;
+  }
+
+  .space__time {
+    flex: 0 0 100%;
+    margin-top: 4px;
+  }
+}
+
+/* 手机：目录一行、隐藏说明，让第一屏能落下 5 个以上空间 */
+@media (max-width: 640px) {
+  .library {
+    padding: var(--s-3) 14px var(--s-6);
+    gap: 8px;
+  }
+
+  /* 目录与「管理分类」并成一行；sticky 的 top 在窄屏必须一并清掉，否则会整体下移压住页头 */
+  .rail {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rail__title {
+    display: none;
+  }
+
+  .rail__list {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* 右侧淡出，提示还能横向滑，避免文字被硬切 */
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  }
+
+  .rail__manage {
+    flex: 0 0 auto;
+    margin: 0;
+    padding-left: 8px;
+    border-left: var(--hairline);
+    font-size: 12px;
+  }
+
+  .rail__hint {
+    flex: 1 1 100%;
+    margin: 4px 0 0;
+  }
+
+  .body :deep(.ph) {
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+
+  .body :deep(.ph__eyebrow) {
+    display: none;
+  }
+
+  .body :deep(.ph__title) {
+    font-size: 22px;
+  }
+
+  .body :deep(.ph__meta) {
+    margin-top: 3px;
+  }
+
+  .spaces > li {
+    flex: 1 1 100%;
+  }
+
+  .space {
+    padding: 10px 0;
+  }
+
+  .space:hover {
+    border-left-color: transparent;
+    background: none;
+  }
+
+  .space__cat {
+    font-size: 10px;
+  }
+
+  .space__name {
+    margin: 1px 0 3px;
+    font-size: 17px;
+    line-height: 1.35;
+  }
+
+  .space__desc {
+    display: none;
+  }
+
+  .space__foot {
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .space__members {
+    margin-left: 0;
+  }
+
+  .space__time {
+    margin-left: auto;
+    font-size: 10px;
   }
 }
 </style>

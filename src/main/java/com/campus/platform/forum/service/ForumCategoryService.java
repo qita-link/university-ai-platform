@@ -85,8 +85,10 @@ public class ForumCategoryService {
         category.setDescription(blankToNull(req.description()));
         category.setSortOrder(req.sortOrder() == null ? 0 : req.sortOrder());
         category.setStatus(req.status() == null ? ForumCategoryStatus.ACTIVE : req.status());
+        category.setAnnouncement(Boolean.TRUE.equals(req.announcement()));
         categoryMapper.insert(category);
-        audit("FORUM_CATEGORY_CREATE", category.getId(), "name", name, "status", category.getStatus());
+        audit("FORUM_CATEGORY_CREATE", category.getId(), "name", name, "status", category.getStatus(),
+                "announcement", category.getAnnouncement());
         return view(category, 0L);
     }
 
@@ -97,19 +99,23 @@ public class ForumCategoryService {
         String name = req.name().trim();
         requireNameUnique(name, id);
         ForumCategoryStatus status = req.status() == null ? category.getStatus() : req.status();
+        boolean announcement = req.announcement() == null
+                ? Boolean.TRUE.equals(category.getAnnouncement()) : req.announcement();
         int updated = categoryMapper.update(null, new LambdaUpdateWrapper<ForumCategory>()
                 .eq(ForumCategory::getId, id)
                 .set(ForumCategory::getName, name)
                 .set(ForumCategory::getDescription, blankToNull(req.description()))
                 .set(ForumCategory::getSortOrder, req.sortOrder() == null ? 0 : req.sortOrder())
                 .set(ForumCategory::getStatus, status)
+                .set(ForumCategory::getAnnouncement, announcement)
                 .set(ForumCategory::getUpdatedBy, user.userId())
                 .set(ForumCategory::getUpdatedAt, LocalDateTime.now(clock)));
         if (updated != 1) {
             throw BusinessException.conflict("分类已被其他人修改，请刷新后重试");
         }
         audit("FORUM_CATEGORY_UPDATE", id, "name", name,
-                "statusFrom", category.getStatus(), "statusTo", status);
+                "statusFrom", category.getStatus(), "statusTo", status,
+                "announcement", announcement);
         ForumCategory updatedCategory = categoryMapper.selectById(id);
         if (updatedCategory == null) {
             throw BusinessException.notFound("分类");
@@ -182,7 +188,8 @@ public class ForumCategoryService {
 
     private static ForumCategoryView view(ForumCategory c, long postCount) {
         return new ForumCategoryView(c.getId(), c.getName(), c.getDescription(),
-                c.getSortOrder() == null ? 0 : c.getSortOrder(), c.getStatus(), postCount,
+                c.getSortOrder() == null ? 0 : c.getSortOrder(), c.getStatus(),
+                Boolean.TRUE.equals(c.getAnnouncement()), postCount,
                 c.getCreatedAt(), c.getUpdatedAt());
     }
 

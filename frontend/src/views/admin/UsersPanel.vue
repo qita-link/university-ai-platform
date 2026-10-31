@@ -709,6 +709,28 @@ function roleText(u: UserView) {
 }
 
 @media (max-width: 900px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-3);
+  }
+
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .filters :deep(.ui-select) {
+    min-width: 0;
+  }
+
+  .filters :deep(.ui-btn) {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
   .row {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--s-2);

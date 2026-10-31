@@ -19,6 +19,7 @@ public class ForumPostRow {
     private String content;
     private ForumPostStatus status;
     private Boolean pinned;
+    private LocalDateTime pinnedUntil;
     private Integer commentCount;
     private LocalDateTime lastActivityAt;
     private LocalDateTime createdAt;

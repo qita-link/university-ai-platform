@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { NAV } from './nav'
+import { NAV, flatNavItems } from './nav'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -12,7 +12,7 @@ declare module 'vue-router' {
   }
 }
 
-const pendingRoutes: RouteRecordRaw[] = NAV.filter((n) => !n.ready).map((n) => ({
+const pendingRoutes: RouteRecordRaw[] = flatNavItems(NAV).filter((n) => !n.ready).map((n) => ({
   path: n.to + '/:rest(.*)*',
   component: () => import('@/views/PendingModuleView.vue'),
   props: { label: n.label, latin: n.latin },
@@ -30,6 +30,7 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/components/layout/AppShell.vue'),
     children: [
+      // 首页已并入问答页：校务速览放在“有什么想查”旁边
       { path: '', redirect: '/ai' },
       {
         path: 'ai/:conversationId(\\d+)?',
@@ -37,8 +38,20 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/AiChatView.vue'),
         meta: { anyOf: ['ai:chat', 'ai:tool:use'], title: '问答' },
       },
-      // 旧链接仍可用：办事已并入问答页的视图切换
-      { path: 'act', redirect: { name: 'ai', query: { mode: 'act' } } },
+      // 旧链接仍可用：办事已并入问答页，同一个输入框既能查也能办
+      { path: 'act', redirect: '/ai' },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/views/ProfileView.vue'),
+        meta: { title: '个人资料' },
+      },
+      {
+        path: 'notifications',
+        name: 'notifications',
+        component: () => import('@/views/NotificationView.vue'),
+        meta: { title: '通知' },
+      },
       {
         path: 'knowledge',
         name: 'knowledge',
@@ -73,13 +86,42 @@ const routes: RouteRecordRaw[] = [
         path: 'courses',
         name: 'courses',
         component: () => import('@/views/course/CourseView.vue'),
-        meta: { anyOf: ['course:read'], title: '课程' },
+        meta: { anyOf: ['course:read'], title: '课表' },
       },
       {
         path: 'courses/:id(\\d+)',
         name: 'course',
         component: () => import('@/views/course/CourseDetailView.vue'),
         meta: { anyOf: ['course:read'], title: '课程详情' },
+      },
+      {
+        path: 'grades',
+        name: 'grades',
+        component: () => import('@/views/GradesView.vue'),
+        meta: {
+          anyOf: ['grade:read', 'grade:manage', 'grade:manage_all', 'evaluation:submit', 'evaluation:read'],
+          title: '成绩',
+        },
+      },
+      {
+        path: 'services',
+        name: 'services',
+        component: () => import('@/views/ServicesView.vue'),
+        // 旧通知与书签中的反馈页签改投到校长信箱；教室相关页签保持原地址。
+        beforeEnter: (to) => {
+          const tab = String(to.query.tab ?? '')
+          if (tab === 'feedback' || tab === 'handle') {
+            return { path: '/mailbox', query: { tab } }
+          }
+          return true
+        },
+        meta: { anyOf: ['classroom:read', 'room:book', 'room:approve'], title: '教室' },
+      },
+      {
+        path: 'mailbox',
+        name: 'mailbox',
+        component: () => import('@/views/MailboxView.vue'),
+        meta: { anyOf: ['feedback:submit', 'feedback:handle'], title: '校长信箱' },
       },
       {
         path: 'leave',

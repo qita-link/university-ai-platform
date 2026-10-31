@@ -2,7 +2,7 @@
 
 > 用途：跨会话/跨阶段快速恢复上下文。只记录**已确认的事实、关键决策和下一步**；详细设计见 01–04。每次阶段验收后更新本文件。
 
-最后更新：2026-10-27
+最后更新：2026-10-30
 
 ## 1. 当前状态
 
@@ -255,12 +255,11 @@ mvn verify -Pit
 
 - 限流是单实例进程内令牌桶；多实例部署每个实例独立计数。需要全局限流时再接 Redis。
 - 角色/权限点只能由迁移脚本维护，没有在线编辑。
-- 没有前端；接口文档以 Swagger 为准。
+- 接口文档以 Swagger 为准，前端在 `frontend/`（Vue 3 + TS），未覆盖的管理项仍走 Swagger。
 - 无密码历史、强制改密周期、MFA。
 - 知识库只建立 ngram 关键词索引；Embedding/Qdrant 未接入，`SearchStrategy` 已预留 VECTOR/HYBRID。
 - AI 问答依赖 `AI_CHAT_PROVIDER`/API Key；未配置时明确 503，不伪造回答。
 - 只解析 Markdown 文本，不处理 PDF/Word/图片 OCR。
-- 论坛没有前端；当前只交付后端接口与 Swagger。
 - 论坛版主权限是全局 `forum:moderate`，没有按分类的版主授权、举报/审核队列、敏感词过滤。
 - 论坛评论不支持编辑、点赞、收藏、@提醒、通知；帖子没有浏览数/热度统计和附件上传。
 - 分类停用会隐藏其下全部帖子；软删除帖子仍占用分类（分类删除前要求无任何帖子）。
@@ -275,7 +274,7 @@ mvn verify -Pit
 - 没有压力/容量测试（长稳压测）、混沌工程与多节点一致性测试；并发用例均为单 JVM + 单库。
 - 没有 CI 流水线与容器化产物（Dockerfile/K8s）；构建与部署命令目前是手工 Maven + jar。
 - 没有接入 Prometheus/Grafana 指标与告警；健康检查只返回 UP/DOWN，不含依赖细节。
-- 没有前端；所有能力通过 REST + Swagger 暴露。
+- 前端已覆盖主要业务页，少量管理项仍通过 REST + Swagger 操作。
 - `V1`–`V6` 已发布，不要修改；后续增量按 `V7+` 追加。
 
 ## 7. 阶段八完成记录与后续增量
@@ -298,3 +297,41 @@ mvn verify -Pit
 - 新增业务变更 → 追加 `V7+` 迁移，不改已发布脚本；同步更新 01–06 与本文件。
 - 新增工具 → 实现 `AiToolProvider` 并保持“只调用 Service”；同步更新 04 的工具清单与 05 的行为约束。
 - 每次阶段验收记录真实测试数量、验证环境与冒烟结果。
+
+## 8. 近期增量（V10–V14，2026-10-28 至 10-30）
+
+前端已落地（Vue 3 + TS，`frontend/`），后端新增 `grade`/`evaluation`/`feedback`/`classroom`/`attendance`/`setting`/`notification`/`profile` 包；
+详细接口见 `docs/04-api-design.md`，专题文档见 `docs/14`、`15`、`16`，下面只记**改代码前必须知道**的约束。
+
+### 必须保持的行为
+- **成绩与绩点**：成绩点对点（课程×学生）；绩点由分数换算，重修取最高分；学生只看到本人，教师只看到所授课程，学生会/管理员按组织范围。
+- **评教**：一学生对同一课程同一教师只评一次（`upsert`），提交后不可改；教师看聚合不看个人；未评教不能选课（开关控制）。
+- **请假双审批**：上课教师与辅导员都要同意才算通过，任一驳回即驳回；审批人可配置；销假按「班级 + 节次」粒度。
+- **考勤**：旷课记录按班级课表节次生成，支持申诉；缺勤达阈值触发预警并写站内信；申诉审批只允许待审状态流转一次。
+- **通知**：`NotificationWriter` 用 `REQUIRES_NEW`，保证业务回滚后站内信仍在；广播走一条 `INSERT…SELECT`（排除发布者）；渠道发送器（Email/Wechat）是占位实现，状态 `SKIPPED`，不实际外发。
+- **置顶**：`forum_post.pinned_until` 到期自动失效，排序 SQL 与 Java 都判「pinned 且未到期」；只改状态不重置期限，不做定时清理。
+- **公告**：公告分类发帖/改帖需 `forum:announce`；发布即广播 + `popupRequired`；弹窗关闭即已读（`GET /notifications/popups` 最多 5 条）。
+- **头像**：存 `user_avatar` 的 MEDIUMBLOB，`sys_user.avatar_version` 自增做缓存失效；`GET /profile/avatar/{userId}` 需登录且带 Bearer，前端用 `objectURL` 按「用户 + 版本」缓存，不能裸写 `<img src>`。
+- **帖子编辑痕迹**：`ProfilePostView.editedAt/editorName/editorRole` 用 `version > 0` 判定被改过（评论回帖会刷新 `updated_at`，不能用它判断）；冲突返回 409，前端带 `version` 重试。
+
+### 前端布局约定
+- 主导航在**左侧**（桌面常驻 224px，≤900px 收成顶部条 + 汉堡抽屉）；模块目录（问答/知识库/论坛）在**右侧**。
+- 抽屉一律 Teleport 到 body：锁 `body` 滚动、Esc 关闭、遮罩淡入；导航抽屉与通知抽屉**没有阴影**，只有 1px 边框。
+- `base.css` 的全局规则要盖住页面 scoped 样式，必须加 `body` 前缀提高权重。
+- `.rail` 在窄屏要显式 `position: static`，否则 sticky 的 `top` 会残留下移压住页头。
+- 窄屏检索收成图标（`.search--collapsible`），640px 以下隐藏摘要与竖排小标以提升信息密度。
+
+### 验证环境（2026-10-30）
+- 后端 `java -jar` 在 8080（`/actuator/health` 200），前端 dev server 5173；数据库为本机 `campus_ai`，Flyway 已到 V15。
+- 演示账号：`admin / Campus@2026!Admin`、`20260001 / Campus@2026!Stu`、`T047 / Campus@2026!Tea`。
+- `mvn -DskipTests package`、`vue-tsc -b`、`npm run build` 均通过；390×844 与 1366×860 截图无横向溢出。
+
+## 9. 导航重构与校长信箱（V15，2026-10-30）
+
+- **导航分组**：`nav.ts` 的 `NAV` 支持 `type:'group'`；「课程」= 课表(`/courses`) + 排课(`/scheduling`)，「校长信箱」= 投诉与建议(`/mailbox?tab=feedback`) + 处理反馈(`/mailbox?tab=handle`)。
+  点击组标题展开/收起（Transition 下拉），当前路由所在分组自动展开；子项入口带 `?tab=` 时 `isActive` 会同时匹配查询参数。
+- **改名**：原「服务台/服务」改「教室」（`/services` 只留空教室、我的借用、借用审批），原「课程」入口改「课表」；旧的 `/services?tab=feedback|handle` 在路由 `beforeEnter` 重定向到 `/mailbox`。
+- **校长信箱**：新 `MailboxView.vue`；投诉与建议全员可见，处理反馈页签/菜单要求 `roles:['ADMIN']` + `feedback:handle`。
+- **后端（V15）**：`feedback:submit` 补齐到所有现有角色（全员可提交），非 ADMIN 角色上的 `feedback:handle` 被清除，权限点 module 改为 `mailbox`；
+  处理接口 `@PreAuthorize("hasRole('ADMIN') and hasAuthority('feedback:handle')")`，Service 里再用 `user.isAdmin()` 兜底——将来误把权限点分给其他角色也进不来。
+- 复测：admin `GET /feedbacks` 200，student/teacher 403；三者 `feedback:submit` 均为 true；非管理员访问 `?tab=handle` 会被前端改回 `?tab=feedback`。

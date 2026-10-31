@@ -26,7 +26,7 @@ const loadError = ref<string | null>(null)
 const mode = ref<'list' | 'form'>('list')
 const editing = ref<ForumCategory | null>(null)
 const busy = ref(false)
-const form = ref({ name: '', description: '', sortOrder: '0', status: 'ACTIVE' })
+const form = ref({ name: '', description: '', sortOrder: '0', status: 'ACTIVE', announcement: false })
 const formError = ref<Record<string, string | null>>({})
 
 async function load() {
@@ -53,7 +53,7 @@ watch(
 
 function openCreate() {
   editing.value = null
-  form.value = { name: '', description: '', sortOrder: '0', status: 'ACTIVE' }
+  form.value = { name: '', description: '', sortOrder: '0', status: 'ACTIVE', announcement: false }
   formError.value = {}
   mode.value = 'form'
 }
@@ -65,6 +65,7 @@ function openEdit(c: ForumCategory) {
     description: c.description ?? '',
     sortOrder: String(c.sortOrder),
     status: c.status,
+    announcement: c.announcement,
   }
   formError.value = {}
   mode.value = 'form'
@@ -82,6 +83,7 @@ async function submit() {
     description: form.value.description.trim() || null,
     sortOrder: Number(form.value.sortOrder) || 0,
     status: form.value.status,
+    announcement: form.value.announcement,
   }
   try {
     if (editing.value) await forumApi.updateCategory(editing.value.id, body)
@@ -111,6 +113,7 @@ async function toggle(c: ForumCategory) {
       description: c.description,
       sortOrder: c.sortOrder,
       status: c.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+      announcement: c.announcement,
     })
     toast.push(c.status === 'ACTIVE' ? '已停用，普通用户不再看到' : '已启用', 'success')
     await load()
@@ -160,6 +163,7 @@ async function remove(c: ForumCategory) {
                 <UiTag :tone="c.status === 'ACTIVE' ? 'neutral' : 'muted'">
                   {{ c.status === 'ACTIVE' ? '启用' : '已停用' }}
                 </UiTag>
+                <UiTag v-if="c.announcement" tone="ochre">公告</UiTag>
               </p>
               <p class="row__meta">
                 <span v-if="c.description">{{ c.description }}</span>
@@ -187,6 +191,13 @@ async function remove(c: ForumCategory) {
         <UiField v-model="form.name" label="名称" :error="formError.name" :maxlength="64" required />
         <UiField v-model="form.description" label="说明" :maxlength="500" hint="显示在列表页的分类旁，可留空。" />
         <UiField v-model="form.sortOrder" label="排序" inputmode="numeric" hint="越小越靠前。" />
+        <label class="check">
+          <input v-model="form.announcement" type="checkbox" />
+          <span>
+            作为公告分类
+            <em>只有持「发布官方公告」权限的账号能在这里发帖；每发一条都会给全校发站内信并弹窗。</em>
+          </span>
+        </label>
         <p v-if="formError.general" class="err" role="alert">{{ formError.general }}</p>
       </div>
     </template>
@@ -262,5 +273,27 @@ async function remove(c: ForumCategory) {
   margin: 0;
   color: var(--ochre);
   font-size: var(--fs-small);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  font-size: var(--fs-small);
+  line-height: 1.7;
+  cursor: pointer;
+}
+
+.check input {
+  margin-top: 4px;
+  accent-color: var(--teal);
+}
+
+.check em {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-style: normal;
+  font-size: 11px;
 }
 </style>

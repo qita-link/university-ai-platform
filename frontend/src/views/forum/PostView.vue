@@ -14,19 +14,32 @@ import UiDialog from '@/components/ui/UiDialog.vue'
 import UiEmpty from '@/components/ui/UiEmpty.vue'
 import UiField from '@/components/ui/UiField.vue'
 import UiPager from '@/components/ui/UiPager.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTag from '@/components/ui/UiTag.vue'
 import UiTextarea from '@/components/ui/UiTextarea.vue'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 /**
  * 帖子详情：正文 + 两级评论。
  * 权限：作者可改删自己的内容，版主（forum:moderate）可管理全部。
  */
+const props = withDefaults(
+  defineProps<{
+    /** 抽屉模式下由父组件传入帖子 ID；不传则读路由参数 */
+    postId?: number
+    /** 作为右侧抽屉的内容渲染时，隐藏面包屑并通知父组件关闭 */
+    embedded?: boolean
+  }>(),
+  { postId: undefined, embedded: false },
+)
+const emit = defineEmits<{ close: [] }>()
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
 
-const postId = computed(() => Number(route.params.id))
+const postId = computed(() => props.postId ?? Number(route.params.id))
 const post = ref<ForumPostDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -42,6 +55,21 @@ const isAuthor = computed(() => !!post.value && post.value.authorId === me.value
 const canModerate = computed(() => auth.can('forum:moderate'))
 const canWrite = computed(() => auth.can('forum:post:write'))
 const canComment = computed(() => auth.can('forum:comment:write'))
+
+/** 公告分类 id：接口没有在帖子上冗余公告标记，这里用分类列表对齐一次 */
+const announcementIds = ref<Set<number>>(new Set())
+const isAnnouncement = computed(
+  () => !!post.value && announcementIds.value.has(post.value.categoryId),
+)
+
+async function loadAnnouncementCategories() {
+  try {
+    const list = await forumApi.categories()
+    announcementIds.value = new Set(list.filter((c) => c.announcement).map((c) => c.id))
+  } catch {
+    /* 只是少一个标签，失败不提示 */
+  }
+}
 
 const html = computed(() => renderMarkdown(post.value?.content))
 
@@ -73,21 +101,19 @@ async function loadComments(id: number) {
   }
 }
 
-watch(
-  () => Number(route.params.id),
-  (id) => {
-    if (!Number.isInteger(id) || id <= 0) return
-    page.value = 1
-    void loadPost(id)
-    void loadComments(id)
-  },
-)
+watch(postId, (id) => {
+  if (!Number.isInteger(id) || id <= 0) return
+  page.value = 1
+  void loadPost(id)
+  void loadComments(id)
+})
 
 watch(page, () => {
   if (post.value) void loadComments(post.value.id)
 })
 
 onMounted(() => {
+  void loadAnnouncementCategories()
   const id = postId.value
   if (Number.isInteger(id) && id > 0) {
     void loadPost(id)
@@ -216,7 +242,8 @@ async function confirmDeletePost() {
     await forumApi.deletePost(post.value.id)
     deleteOpen.value = false
     toast.push('帖子已删除', 'success')
-    await router.push({ name: 'forum' })
+    if (props.embedded) emit('close')
+    else await router.push({ name: 'forum' })
   } catch (e) {
     toast.push(errorMessage(e), 'danger', traceIdOf(e))
   } finally {
@@ -226,16 +253,56 @@ async function confirmDeletePost() {
 
 const moderating = ref(false)
 
-async function togglePin() {
+/* ---------------- 限时置顶 ---------------- */
+const pinOpen = ref(false)
+const pinDays = ref('7')
+const pinBusy = ref(false)
+const pinOptions = [
+  { value: '1', label: '1 天' },
+  { value: '3', label: '3 天' },
+  { value: '7', label: '7 天（默认）' },
+  { value: '30', label: '30 天' },
+  { value: '0', label: '长期置顶' },
+]
+
+const pinHint = computed(() => {
+  const days = Number(pinDays.value)
+  if (days === 0) return '置顶不会自动取消，需要手动取消。'
+  const until = new Date(Date.now() + days * 86_400_000)
+  return `到期后自动恢复普通排序（约 ${until.getMonth() + 1} 月 ${until.getDate()} 日）。`
+})
+
+function openPin() {
+  pinDays.value = '7'
+  pinOpen.value = true
+}
+
+async function submitPin() {
   if (!post.value) return
-  moderating.value = true
+  const days = Number(pinDays.value)
+  pinBusy.value = true
   try {
-    post.value = await forumApi.setPostStatus(post.value.id, { pinned: !post.value.pinned })
-    toast.push(post.value.pinned ? '已置顶' : '已取消置顶', 'success')
+    post.value = await forumApi.setPostStatus(post.value.id, { pinned: true, pinnedDays: days })
+    pinOpen.value = false
+    toast.push(days === 0 ? '已长期置顶' : `已置顶 ${days} 天`, 'success')
   } catch (e) {
     toast.push(errorMessage(e), 'danger', traceIdOf(e))
   } finally {
-    moderating.value = false
+    pinBusy.value = false
+  }
+}
+
+async function unpin() {
+  if (!post.value) return
+  pinBusy.value = true
+  try {
+    post.value = await forumApi.setPostStatus(post.value.id, { pinned: false })
+    pinOpen.value = false
+    toast.push('已取消置顶', 'success')
+  } catch (e) {
+    toast.push(errorMessage(e), 'danger', traceIdOf(e))
+  } finally {
+    pinBusy.value = false
   }
 }
 
@@ -255,8 +322,8 @@ async function toggleHide() {
 </script>
 
 <template>
-  <div class="post-page">
-    <p class="crumbs">
+  <div class="post-page" :class="{ 'post-page--embedded': embedded }">
+    <p v-if="!embedded" class="crumbs">
       <RouterLink :to="{ name: 'forum' }">来信</RouterLink>
       <span aria-hidden="true">/</span>
       <span>{{ post?.categoryName ?? '帖子' }}</span>
@@ -274,21 +341,31 @@ async function toggleHide() {
         <header class="letter__head">
           <p class="letter__tags">
             <UiTag v-if="post.pinned" tone="ochre">置顶</UiTag>
+            <UiTag v-if="isAnnouncement" tone="ochre">公告</UiTag>
             <span class="letter__cat">{{ post.categoryName }}</span>
             <UiTag v-if="post.status === 'HIDDEN'" tone="ochre">已隐藏</UiTag>
           </p>
           <h1 class="letter__title">{{ post.title }}</h1>
           <p class="letter__meta">
+            <UserAvatar
+              :user-id="post.authorId"
+              :version="post.authorAvatarVersion"
+              :name="post.authorName"
+              :size="22"
+            />
             <span>{{ post.authorName }}</span>
             <span class="mono">{{ formatDateTime(post.createdAt) }}</span>
             <span class="mono">{{ post.commentCount }} 回复</span>
+            <span v-if="post.pinned" class="mono letter__pin">
+              置顶{{ post.pinnedUntil ? `至 ${formatDateTime(post.pinnedUntil)}` : '（长期）' }}
+            </span>
           </p>
 
           <div v-if="isAuthor || canModerate" class="letter__actions">
             <UiButton v-if="isAuthor && canWrite" size="sm" @click="openEdit">编辑</UiButton>
             <template v-if="canModerate">
-              <UiButton size="sm" :loading="moderating" @click="togglePin">
-                {{ post.pinned ? '取消置顶' : '置顶' }}
+              <UiButton size="sm" @click="openPin">
+                {{ post.pinned ? '调整置顶' : '置顶' }}
               </UiButton>
               <UiButton size="sm" :loading="moderating" @click="toggleHide">
                 {{ post.status === 'HIDDEN' ? '恢复显示' : '隐藏' }}
@@ -319,6 +396,12 @@ async function toggleHide() {
           <li v-for="t in threads" :key="t.comment.id" class="thread">
             <div class="comment">
               <p class="comment__head">
+                <UserAvatar
+                  :user-id="t.comment.authorId"
+                  :version="t.comment.authorAvatarVersion"
+                  :name="t.comment.authorName"
+                  :size="20"
+                />
                 <span class="comment__author">{{ t.comment.authorName }}</span>
                 <span class="comment__time mono">{{ formatDateTime(t.comment.createdAt) }}</span>
               </p>
@@ -354,6 +437,12 @@ async function toggleHide() {
             <ol v-if="t.replies.length" class="replies">
               <li v-for="r in t.replies" :key="r.id" class="comment comment--reply">
                 <p class="comment__head">
+                  <UserAvatar
+                    :user-id="r.authorId"
+                    :version="r.authorAvatarVersion"
+                    :name="r.authorName"
+                    :size="20"
+                  />
                   <span class="comment__author">{{ r.authorName }}</span>
                   <span v-if="r.replyToUserName" class="comment__to">回复 {{ r.replyToUserName }}</span>
                   <span class="comment__time mono">{{ formatDateTime(r.createdAt) }}</span>
@@ -410,6 +499,31 @@ async function toggleHide() {
       </section>
     </template>
 
+    <!-- 置顶 -->
+    <UiDialog
+      :open="pinOpen"
+      :title="post?.pinned ? '调整置顶' : '置顶这篇帖子？'"
+      eyebrow="版主操作"
+      width="sm"
+      :dismissible="!pinBusy"
+      @close="pinOpen = false"
+    >
+      <div class="form">
+        <p class="pin-note">
+          置顶帖会排在列表最前，公告与置顶同时存在时按发布时间排。到期后自动回到普通排序。
+        </p>
+        <UiSelect v-model="pinDays" label="置顶时长" :options="pinOptions" :hint="pinHint" />
+        <p class="pin-note pin-note--sub">
+          当前：{{ post?.pinned ? (post.pinnedUntil ? `置顶至 ${formatDateTime(post.pinnedUntil)}` : '长期置顶') : '未置顶' }}
+        </p>
+      </div>
+      <template #footer>
+        <UiButton v-if="post?.pinned" variant="danger" :disabled="pinBusy" @click="unpin">取消置顶</UiButton>
+        <UiButton variant="link" :disabled="pinBusy" @click="pinOpen = false">关闭</UiButton>
+        <UiButton variant="primary" :loading="pinBusy" @click="submitPin">确认置顶</UiButton>
+      </template>
+    </UiDialog>
+
     <!-- 编辑 -->
     <UiDialog
       :open="editOpen"
@@ -465,6 +579,11 @@ async function toggleHide() {
 </template>
 
 <style scoped>
+.post-page--embedded {
+  padding: 0 0 var(--s-5);
+  max-width: none;
+}
+
 .post-page {
   width: 100%;
   max-width: 860px;
@@ -700,6 +819,22 @@ async function toggleHide() {
   margin: 0;
   color: var(--ochre);
   font-size: var(--fs-small);
+}
+
+.letter__pin {
+  color: var(--ochre);
+}
+
+.pin-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+  line-height: 1.75;
+}
+
+.pin-note--sub {
+  padding-top: var(--s-2);
+  border-top: var(--hairline);
 }
 
 .del-text {

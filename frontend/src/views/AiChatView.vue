@@ -2,15 +2,15 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AnswerBlock from '@/components/ai/AnswerBlock.vue'
-import ActView from './ActView.vue'
+import ActResultBlock from '@/components/ai/ActResultBlock.vue'
 import Composer from '@/components/ai/Composer.vue'
 import ScopePicker from '@/components/ai/ScopePicker.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiDialog from '@/components/ui/UiDialog.vue'
 import { fromChatResponse, fromMessage, type ChatItem } from '@/components/ai/types'
-import { aiApi, knowledgeApi } from '@/api/endpoints'
+import { aiApi, evaluationApi, feedbackApi, gradeApi, knowledgeApi, leaveApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
-import type { ConversationView, SpaceView } from '@/api/types'
+import type { AgentActResponse, ConversationView, SpaceView, TranscriptView } from '@/api/types'
 import { errorMessage, traceIdOf } from '@/lib/errors'
 import { formatShort } from '@/lib/time'
 import { useAuthStore } from '@/stores/auth'
@@ -24,33 +24,8 @@ const clock = useClockStore()
 const toast = useToastStore()
 
 const canKb = computed(() => auth.can('kb:space:read'))
-
-// ---------------- 两个视图：问答 / 办事 ----------------
-/**
- * 问答与办事合并成一页：本质都是“说一句话，系统去做”，
- * 区别只在办事会选工具、改数据，所以用页内视图切换而不是两个导航项。
- * 视图记在 URL（?mode=act）上，方便直接分享到“办事”。
- */
+const canChat = computed(() => auth.can('ai:chat'))
 const canAct = computed(() => auth.can('ai:tool:use'))
-const mode = computed<'ask' | 'act'>(() => {
-  if (!canAct.value) return 'ask'
-  if (route.query.mode === 'act') return 'act'
-  // 只有办事权限、没有问答权限的账号（未来可能出现的角色）直接落在办事视图
-  return auth.can('ai:chat') ? 'ask' : 'act'
-})
-
-async function switchMode(next: 'ask' | 'act') {
-  if (next === mode.value) return
-  tocOpen.value = false
-  if (next === 'act') {
-    await router.replace({ name: 'ai', query: { mode: 'act' } })
-  } else {
-    await router.replace({
-      name: 'ai',
-      params: conversationId.value ? { conversationId: conversationId.value } : {},
-    })
-  }
-}
 
 // ---------------- 会话目录 ----------------
 const conversations = ref<ConversationView[]>([])
@@ -110,13 +85,10 @@ async function openConversation(id: number | null) {
   }
 }
 
-// 路由变化（点目录、浏览器前进后退）时切换会话；本页新建会话后 replace 路由不重复加载
 watch(
   () => route.params.conversationId,
   () => {
     tocOpen.value = false
-    // 办事视图不带会话 id；切回问答时仍然回到原来那段会话，不清空
-    if (mode.value === 'act') return
     const id = routeId()
     if (id !== conversationId.value) void openConversation(id)
   },
@@ -124,6 +96,25 @@ watch(
 
 function scrollToBottom(behavior: ScrollBehavior = 'smooth') {
   window.scrollTo({ top: document.documentElement.scrollHeight, behavior })
+}
+
+/** 办事结果装进同一条消息流：答复、经过与确认单都在这里渲染 */
+function actItem(act: AgentActResponse): ChatItem {
+  return {
+    key: `a${Date.now()}`,
+    role: 'ASSISTANT',
+    content: act.reply ?? '',
+    status: 'SUCCESS',
+    citations: [],
+    model: act.model,
+    totalTokens: null,
+    tokenSource: null,
+    errorCode: null,
+    errorText: null,
+    traceId: null,
+    createdAt: Date.now(),
+    act,
+  }
 }
 
 async function send() {
@@ -153,17 +144,36 @@ async function send() {
   scrollToBottom()
 
   try {
-    const res = await aiApi.chat({
-      message,
-      conversationId: conversationId.value,
-      spaceIds: scope.value.length ? scope.value : null,
-    })
-    replaceItem(pending.key, fromChatResponse(res))
-    if (conversationId.value !== res.conversationId) {
-      conversationId.value = res.conversationId
-      await router.replace({ name: 'ai', params: { conversationId: res.conversationId } })
+    // 有问答权限时先查知识库：有依据就直接回答（带出处），不必惊动工具
+    if (canChat.value) {
+      const chat = await aiApi.chat({
+        message,
+        conversationId: conversationId.value,
+        spaceIds: scope.value.length ? scope.value : null,
+      })
+      if (conversationId.value !== chat.conversationId) {
+        conversationId.value = chat.conversationId
+        await router.replace({ name: 'ai', params: { conversationId: chat.conversationId } })
+      }
+      void loadConversations()
+      if (chat.sufficientEvidence || !canAct.value) {
+        replaceItem(pending.key, fromChatResponse(chat))
+        return
+      }
+      // 知识库答不上来，交给办事：查询类工具同样能补充信息，写操作会出确认单
+      setPendingText(pending.key, '资料里没有直接答案，正在看看能不能帮你办…')
+      const act = await aiApi.act(message)
+      if (act.steps.length || act.pending || act.outcome === 'WAITING_CONFIRM') {
+        replaceItem(pending.key, actItem(act))
+        return
+      }
+      replaceItem(pending.key, fromChatResponse(chat))
+      return
     }
-    void loadConversations()
+
+    // 只有办事权限的账号：直接交给工具
+    const act = await aiApi.act(message)
+    replaceItem(pending.key, actItem(act))
   } catch (e) {
     const code = e instanceof ApiError ? e.code : null
     replaceItem(pending.key, {
@@ -173,7 +183,7 @@ async function send() {
       errorText: errorMessage(e),
       traceId: traceIdOf(e),
     })
-    if (!draft.value) draft.value = message // 失败时把问题放回输入框，方便重试
+    if (!draft.value) draft.value = message
   } finally {
     sending.value = false
   }
@@ -184,6 +194,20 @@ function replaceItem(key: string, next: ChatItem) {
   if (i >= 0) items.value.splice(i, 1, next)
 }
 
+/** 等待提示换一句话：替换成新对象，确保响应式更新 */
+function setPendingText(key: string, text: string) {
+  const i = items.value.findIndex((x) => x.key === key)
+  const current = i >= 0 ? items.value[i] : undefined
+  if (!current) return
+  items.value.splice(i, 1, { ...current, content: text, status: 'PENDING' })
+}
+
+function quickAsk(text: string) {
+  if (sending.value) return
+  draft.value = text
+  void send()
+}
+
 // 点击正文角标时，把对应旁注滚入视野（不使用 scrollIntoView）
 function reveal(el: HTMLElement) {
   const r = el.getBoundingClientRect()
@@ -191,6 +215,97 @@ function reveal(el: HTMLElement) {
   if (r.top < pad || r.bottom > window.innerHeight - 200) {
     window.scrollTo({ top: window.scrollY + r.top - pad, behavior: 'smooth' })
   }
+}
+
+// ---------------- 起步面板：精简版“校务速览” ----------------
+const transcript = ref<TranscriptView | null>(null)
+const pendingLeaves = ref(0)
+const pendingEvaluation = ref(0)
+const pendingFeedback = ref(0)
+
+const canGrades = computed(() => auth.can('grade:read'))
+const canReview = computed(() => auth.can('leave:review', 'leave:manage_all'))
+const canEvaluate = computed(() => auth.can('evaluation:submit'))
+const canHandle = computed(() => !!auth.user?.roles.includes('ADMIN') && auth.can('feedback:handle'))
+
+const gpaText = computed(() => {
+  const overall = transcript.value?.overall
+  if (!overall || overall.courseCount === 0) return null
+  return overall
+})
+
+const todo = computed(() =>
+  [
+    { to: '/leave?tab=review', label: '待审批请假', count: pendingLeaves.value, show: canReview.value },
+    { to: '/grades?tab=evaluate', label: '待评教', count: pendingEvaluation.value, show: canEvaluate.value },
+    { to: '/mailbox?tab=handle', label: '待处理反馈', count: pendingFeedback.value, show: canHandle.value },
+  ].filter((t) => t.show),
+)
+
+const shortcuts = computed(() =>
+  [
+    { to: '/services?tab=rooms', label: '空教室', show: auth.can('classroom:read') },
+    { to: '/leave', label: '请假', show: auth.can('leave:submit', 'leave:review', 'leave:manage_all') },
+    { to: '/grades', label: '成绩', show: auth.can('grade:read', 'grade:manage', 'evaluation:submit') },
+    { to: '/mailbox?tab=feedback', label: '意见', show: auth.can('feedback:submit') },
+    { to: '/courses', label: '课表', show: auth.can('course:read') },
+  ].filter((s) => s.show),
+)
+
+const guesses = computed(() => {
+  const list: string[] = []
+  if (auth.can('grade:read')) list.push('我的绩点是多少？')
+  if (auth.can('timetable:read')) list.push('我这学期有哪些课？')
+  if (auth.can('classroom:read')) list.push('今天下午哪里有空教室？')
+  if (auth.can('leave:submit')) list.push('我要请假，帮我写一张')
+  list.push('图书馆几点开门？')
+  if (auth.can('forum:post:write')) list.push('论坛里有人讨论补退选吗？')
+  return list.slice(0, 6)
+})
+
+async function loadGlance() {
+  const jobs: Promise<void>[] = []
+  if (canGrades.value) {
+    jobs.push(
+      gradeApi
+        .me()
+        .then((t) => {
+          transcript.value = t
+        })
+        .catch(() => undefined),
+    )
+  }
+  if (canReview.value) {
+    jobs.push(
+      leaveApi
+        .toReview({ status: 'PENDING', size: 1 })
+        .then((r) => {
+          pendingLeaves.value = r.total
+        })
+        .catch(() => undefined),
+    )
+  }
+  if (canEvaluate.value) {
+    jobs.push(
+      evaluationApi
+        .tasks()
+        .then((r) => {
+          pendingEvaluation.value = r.filter((t) => !t.evaluated).length
+        })
+        .catch(() => undefined),
+    )
+  }
+  if (canHandle.value) {
+    jobs.push(
+      feedbackApi
+        .list({ status: 'OPEN', size: 1 })
+        .then((r) => {
+          pendingFeedback.value = r.total
+        })
+        .catch(() => undefined),
+    )
+  }
+  await Promise.allSettled(jobs)
 }
 
 // ---------------- 删除会话 ----------------
@@ -231,20 +346,18 @@ async function loadSpaces() {
   }
 }
 
-// ---------------- 工具（办事） ----------------
-// 办事已迁到独立的“办事”页（/act），问答页只负责知识库问答，不再挂工具入口与确认托盘。
-
 onMounted(() => {
   void loadConversations()
   void openConversation(routeId())
   void loadSpaces()
+  void loadGlance()
 })
 </script>
 
 <template>
-  <div class="ask" :class="{ 'ask--act': mode === 'act' }">
-    <!-- 目录：历史会话（只属于问答视图） -->
-    <aside v-if="mode === 'ask'" class="toc" :class="{ 'is-open': tocOpen }" aria-label="历史会话">
+  <div class="ask">
+    <!-- 目录：历史会话 -->
+    <aside class="toc" :class="{ 'is-open': tocOpen }" aria-label="历史会话">
       <div class="toc__head">
         <p class="toc__title"><span class="latin-italic">Contents</span> 目录</p>
         <RouterLink :to="{ name: 'ai' }" class="toc__new">新的提问</RouterLink>
@@ -276,53 +389,55 @@ onMounted(() => {
     <section class="column">
       <div class="column__inner">
         <header class="running-head">
-          <button
-            v-if="mode === 'ask'"
-            type="button"
-            class="running-head__toc"
-            :aria-expanded="tocOpen"
-            @click="tocOpen = !tocOpen"
-          >
+          <button type="button" class="running-head__toc" :aria-expanded="tocOpen" @click="tocOpen = !tocOpen">
             目录
           </button>
-          <p class="running-head__title">
-            {{ mode === 'act' ? '说一句，把事办掉' : conversationId ? currentTitle || '会话' : '新的提问' }}
-          </p>
-          <nav class="modes" aria-label="问答或办事">
-            <button type="button" class="modes__btn" :class="{ 'is-on': mode === 'ask' }" @click="switchMode('ask')">
-              问答
-            </button>
-            <button
-              v-if="canAct"
-              type="button"
-              class="modes__btn"
-              :class="{ 'is-on': mode === 'act' }"
-              @click="switchMode('act')"
-            >
-              办事
-            </button>
-          </nav>
-          <p class="running-head__folio latin-italic">{{ mode === 'act' ? 'Desk' : 'Ask' }}</p>
+          <p class="running-head__title">{{ conversationId ? currentTitle || '会话' : '问答与办事' }}</p>
+          <p class="running-head__folio latin-italic">Ask · Act</p>
         </header>
 
-        <!-- 办事：同一页内的另一种用法，不再单独占一个导航项 -->
-        <ActView v-if="mode === 'act'" embedded />
-
-        <template v-else>
         <p v-if="loadingConv" class="state">正在翻到这一页…</p>
         <div v-else-if="loadConvError" class="state state--err" role="alert">
           <p>{{ loadConvError }}</p>
           <RouterLink :to="{ name: 'ai' }">开始新的提问</RouterLink>
         </div>
 
-        <!-- 空白页：说明这里如何作答，不放示例数据 -->
-        <div v-else-if="items.length === 0" class="blank fade-in">
-          <p class="blank__latin latin-italic">Ask the library</p>
-          <h1 class="blank__title">有什么想查的？</h1>
-          <div class="blank__rules">
-            <p><span class="latin-italic">i.</span> 回答只依据你有权阅读的知识库，出处列在右侧，点开可读原文。</p>
-            <p><span class="latin-italic">ii.</span> 依据不足时，会以“编者按”直接告诉你没找到，而不是编一个答案。</p>
+        <!-- 起步：一句话入口 + 精简校务速览 -->
+        <div v-else-if="items.length === 0" class="start fade-in">
+          <p class="start__latin latin-italic">Ask · Act</p>
+          <h1 class="start__title">有什么想查？</h1>
+          <p class="start__sub">查资料、课表、空教室；也可以直接说要办的事，比如请假、发帖。</p>
+
+          <section
+            v-if="gpaText || todo.length || shortcuts.length"
+            class="glance"
+            :class="{ 'glance--slim': !gpaText }"
+            aria-label="校务速览"
+          >
+            <RouterLink v-if="gpaText" to="/grades" class="glance__gpa">
+              <span class="glance__gpa-value mono">{{ gpaText.gpa.toFixed(2) }}</span>
+              <span class="glance__gpa-label">
+                平均学分绩点 · 已修 {{ gpaText.earnedCredits.toFixed(1) }} 学分
+              </span>
+            </RouterLink>
+            <div class="glance__side">
+              <p v-if="todo.length" class="glance__todo">
+                <RouterLink v-for="t in todo" :key="t.to" :to="t.to" class="glance__todo-item">
+                  {{ t.label }}<span class="mono">{{ t.count }}</span>
+                </RouterLink>
+              </p>
+              <p v-if="shortcuts.length" class="glance__links">
+                <RouterLink v-for="s in shortcuts" :key="s.to" :to="s.to" class="glance__link">{{ s.label }}</RouterLink>
+              </p>
+            </div>
+          </section>
+
+          <div class="chips" aria-label="猜你想问">
+            <button v-for="g in guesses" :key="g" type="button" class="chip" :disabled="sending" @click="quickAsk(g)">
+              {{ g }}
+            </button>
           </div>
+          <p class="start__note">回答只依据你有权阅读的资料；改数据的操作会先出确认单，确认后才生效。</p>
         </div>
 
         <!-- 对话流 -->
@@ -332,21 +447,21 @@ onMounted(() => {
               <p class="question__label eyebrow" aria-hidden="true">问</p>
               <p class="question__text">{{ m.content }}</p>
             </div>
+            <ActResultBlock v-else-if="m.act" :response="m.act" />
             <AnswerBlock v-else :item="m" @reveal="reveal" />
           </template>
         </div>
-        </template>
       </div>
 
-      <!-- 底部输入：问答才有自己的输入框，办事用 ActView 的 -->
-      <div v-if="mode === 'ask'" class="dock">
+      <!-- 底部输入 -->
+      <div class="dock">
         <div class="dock__inner">
           <Composer ref="composerRef" v-model="draft" :busy="sending" @send="send">
             <template #tools>
               <ScopePicker v-if="canKb" v-model="scope" :spaces="spaces" :loading="spacesLoading" :error="spacesError" />
             </template>
           </Composer>
-          <p class="dock__note">回答由模型依据知识库生成，可能有误，重要事项请以原文和学校通知为准。</p>
+          <p class="dock__note">回答可能有误，重要事项以原文与学校通知为准；办事会先让你确认。</p>
         </div>
       </div>
     </section>
@@ -365,7 +480,7 @@ onMounted(() => {
 .ask {
   --toc-w: 272px;
   display: grid;
-  grid-template-columns: var(--toc-w) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--toc-w);
   flex: 1;
 }
 
@@ -373,11 +488,13 @@ onMounted(() => {
 .toc {
   position: sticky;
   top: var(--masthead-h);
+  grid-column: 2;
+  grid-row: 1;
   align-self: start;
   height: calc(100vh - var(--masthead-h));
   overflow-y: auto;
-  padding: var(--s-5) var(--s-4) var(--s-5) var(--s-5);
-  border-right: var(--hairline);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-4);
+  border-left: var(--hairline);
   background: var(--paper-deep);
 }
 
@@ -510,6 +627,8 @@ onMounted(() => {
 .column {
   display: flex;
   flex-direction: column;
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
   container: reading / inline-size;
 }
@@ -521,13 +640,12 @@ onMounted(() => {
   padding: 0 clamp(var(--s-4), 5vw, var(--s-7)) var(--s-6);
 }
 
-/* 书眉 */
 .running-head {
   display: flex;
   align-items: baseline;
   gap: var(--s-3);
   padding: var(--s-4) 0 var(--s-2);
-  margin-bottom: var(--s-6);
+  margin-bottom: var(--s-4);
   border-bottom: var(--hairline);
 }
 
@@ -557,43 +675,150 @@ onMounted(() => {
   color: var(--ink-2);
 }
 
-/* 问答 / 办事 的页内切换 */
-.modes {
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-  border: var(--hairline);
-  background: var(--paper-lift);
+/* ---------- 起步面板 ---------- */
+.start {
+  max-width: 46em;
+  padding: var(--s-4) 0 var(--s-2);
 }
 
-.modes__btn {
-  padding: 3px 10px;
-  border: 0;
-  background: none;
+.start__latin {
+  margin: 0;
   color: var(--ink-2);
+  font-size: 18px;
+}
+
+.start__title {
+  margin: var(--s-1) 0 var(--s-2);
   font-family: var(--font-serif-cjk);
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
 }
 
-.modes__btn:hover {
-  color: var(--ink);
+.start__sub {
+  margin: 0 0 var(--s-4);
+  color: var(--ink-2);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.7;
 }
 
-.modes__btn.is-on {
-  background: var(--ink);
-  color: var(--paper);
+.glance {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 1px;
+  margin-bottom: var(--s-4);
+  border: 1px solid var(--rule);
+  background: var(--rule);
 }
 
-/* 办事视图不需要会话目录，正文占满整行 */
-.ask--act {
+.glance--slim {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.ask--act .column__inner {
-  max-width: 1280px;
+.glance--slim {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.glance__gpa {
+  display: grid;
+  gap: 4px;
+  padding: var(--s-3);
+  background: var(--paper-lift);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.glance__gpa:hover {
+  background: var(--paper-deep);
+  text-decoration: none;
+}
+
+.glance__gpa-value {
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1;
+}
+
+.glance__gpa-label {
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.glance__side {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  background: var(--paper-lift);
+}
+
+.glance__todo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.glance__todo-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--warning);
+  color: var(--ink);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.glance__todo-item .mono {
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.glance__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin: 0;
+}
+
+.glance__link {
+  font-size: var(--fs-small);
+  color: var(--teal);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.chip {
+  padding: 7px 11px;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-lift);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--teal);
+  background: var(--teal-tint);
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.start__note {
+  margin: var(--s-3) 0 0;
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.7;
 }
 
 .state {
@@ -610,52 +835,11 @@ onMounted(() => {
   color: var(--ink);
 }
 
-/* 空白页 */
-.blank {
-  max-width: 40em;
-  padding: var(--s-6) 0 var(--s-5);
-}
-
-.blank__latin {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 22px;
-}
-
-.blank__title {
-  margin: var(--s-1) 0 var(--s-6);
-  font-family: var(--font-serif-cjk);
-  font-size: var(--fs-h1);
-  line-height: 1.05;
-  letter-spacing: 0.02em;
-}
-
-.blank__rules {
-  display: grid;
-  gap: var(--s-3);
-  max-width: var(--measure);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--ink);
-  font-family: var(--font-serif);
-  font-size: var(--fs-read);
-  line-height: var(--lh-read);
-}
-
-.blank__rules p {
-  display: grid;
-  grid-template-columns: 2em 1fr;
-  margin: 0;
-}
-
-.blank__rules .latin-italic {
-  color: var(--teal);
-}
-
-/* 对话流 */
+/* ---------- 对话流 ---------- */
 .stream {
   display: grid;
   gap: var(--s-6);
-  padding-left: 40px; /* 给页边“问/答”标记留位 */
+  padding-left: 40px;
 }
 
 .question {
@@ -673,7 +857,7 @@ onMounted(() => {
 .question__text {
   margin: 0;
   font-family: var(--font-serif-cjk);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.45;
   white-space: pre-wrap;
@@ -692,11 +876,9 @@ onMounted(() => {
 .dock__inner {
   display: grid;
   max-width: 1140px;
-  /* 左侧多让出 40px，与正文页边“问/答”标记列对齐 */
   padding: 0 clamp(var(--s-4), 5vw, var(--s-7));
   padding-left: calc(clamp(var(--s-4), 5vw, var(--s-7)) + 40px);
-  /* 列定义与 AnswerBlock 一致：输入框正好落在正文列宽上 */
-  grid-template-columns: minmax(0, var(--measure)) minmax(176px, 260px);
+  grid-template-columns: minmax(0, var(--measure));
   column-gap: clamp(24px, 2.6vw, 44px);
 }
 
@@ -722,14 +904,16 @@ onMounted(() => {
 
   .toc {
     position: fixed;
-    left: 0;
+    left: auto;
+    right: 0;
     top: var(--masthead-h);
     bottom: 0;
     z-index: 45;
     width: min(86vw, 320px);
-    height: auto;
-    border-right: 1px solid var(--ink);
-    transform: translateX(-100%);
+    /* 正文栏有 container-type，会让 fixed 的包含块变成它自己，这里必须写死高度 */
+    height: calc(100dvh - var(--masthead-h));
+    border-left: 1px solid var(--ink);
+    transform: translateX(100%);
     transition: transform var(--t-mid) var(--ease);
   }
 
@@ -754,13 +938,109 @@ onMounted(() => {
   }
 }
 
-/* 与 AnswerBlock 同一断点：引用栏落回正文下方时，输入框回到整列宽 */
-@container reading (max-width: 780px) {
-  .dock__inner {
-    grid-template-columns: minmax(0, 1fr);
-    padding-left: clamp(var(--s-4), 5vw, var(--s-7));
+@media (max-width: 640px) {
+  .column__inner {
+    padding: 0 16px var(--s-5);
   }
 
+  .running-head {
+    padding: 8px 0 6px;
+    margin-bottom: 8px;
+  }
+
+  .running-head__folio {
+    display: none;
+  }
+
+  .start {
+    padding: 8px 0 0;
+  }
+
+  .start__latin {
+    display: none;
+  }
+
+  .start__title {
+    font-size: 32px;
+    margin: 0 0 6px;
+  }
+
+  .start__sub {
+    font-size: 14px;
+    margin-bottom: 12px;
+    line-height: 1.6;
+  }
+
+  .glance {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 12px;
+  }
+
+  .glance--slim {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.glance--slim {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.glance__gpa {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .glance__gpa-value {
+    font-size: 28px;
+  }
+
+  .glance__side {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .chips {
+    gap: 6px;
+  }
+
+  .chip {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .start__note {
+    display: none;
+  }
+
+  .stream {
+    padding-left: 0;
+    gap: var(--s-5);
+  }
+
+  .question__label {
+    position: static;
+    margin-bottom: 2px;
+  }
+
+  .question__text {
+    font-size: 19px;
+  }
+
+  .dock {
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .dock__inner {
+    padding: 0 16px;
+  }
+
+  .dock__note {
+    display: none;
+  }
+}
+
+@container reading (max-width: 780px) {
   .stream {
     padding-left: 0;
   }
@@ -768,16 +1048,6 @@ onMounted(() => {
   .question__label {
     position: static;
     margin-bottom: var(--s-1);
-  }
-}
-
-@container reading (max-width: 600px) {
-  .question__text {
-    font-size: 20px;
-  }
-
-  .running-head {
-    margin-bottom: var(--s-4);
   }
 }
 </style>

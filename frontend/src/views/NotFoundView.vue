@@ -9,7 +9,7 @@ withDefaults(defineProps<{ forbidden?: boolean }>(), { forbidden: false })
     <p class="nf__body">
       {{ forbidden ? '当前账号没有访问该页面的权限。若你认为这是误判，请联系管理员调整角色。' : '链接可能已失效，或页面已被移除。' }}
     </p>
-    <RouterLink to="/">回到首页</RouterLink>
+    <RouterLink to="/ai">回到问答</RouterLink>
   </section>
 </template>
 

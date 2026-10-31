@@ -43,6 +43,29 @@ import type {
   UserView,
   VersionDetailView,
   VersionView,
+  TranscriptView,
+  GradeBookView,
+  GradeRuleView,
+  EvaluationTaskView,
+  EvaluationOverview,
+  EvaluationCourseSummary,
+  FeedbackView,
+  FreeSlotView,
+  FreeWeekView,
+  AttendanceSessionView,
+  AttendanceSessionDetailView,
+  ClassTimetableView,
+  ClassAttendanceStatsView,
+  ClassOptionView,
+  ClassCounselorView,
+  SettingView,
+  LeaveFlowView,
+  ProfileView,
+  ProfilePostView,
+  NotificationView,
+  MyAttendanceView,
+  AppealView,
+  RoomBookingView,
 } from './types'
 
 export const systemApi = {
@@ -135,11 +158,16 @@ export const knowledgeApi = {
 export const forumApi = {
   categories: (includeDisabled = false) =>
     http.get<ForumCategory[]>('/forum/categories', includeDisabled ? { includeDisabled: true } : {}),
-  createCategory: (body: { name: string; description: string | null; sortOrder: number; status?: string }) =>
-    http.post<ForumCategory>('/forum/categories', body),
+  createCategory: (body: {
+    name: string
+    description: string | null
+    sortOrder: number
+    status?: string
+    announcement?: boolean
+  }) => http.post<ForumCategory>('/forum/categories', body),
   updateCategory: (
     id: number,
-    body: { name: string; description: string | null; sortOrder: number; status?: string },
+    body: { name: string; description: string | null; sortOrder: number; status?: string; announcement?: boolean },
   ) => http.put<ForumCategory>(`/forum/categories/${id}`, body),
   deleteCategory: (id: number) => http.del<void>(`/forum/categories/${id}`),
   posts: (
@@ -160,7 +188,7 @@ export const forumApi = {
     body: { categoryId: number; title: string; content: string; version: number },
   ) => http.put<ForumPostDetail>(`/forum/posts/${id}`, body),
   deletePost: (id: number) => http.del<void>(`/forum/posts/${id}`),
-  setPostStatus: (id: number, body: { status?: string; pinned?: boolean; reason?: string }) =>
+  setPostStatus: (id: number, body: { status?: string; pinned?: boolean; pinnedDays?: number; reason?: string }) =>
     http.patch<ForumPostDetail>(`/forum/posts/${id}/status`, body),
   comments: (postId: number, page = 1, size = 20) =>
     http.get<ForumCommentPage>(`/forum/posts/${postId}/comments`, { page, size }),
@@ -279,12 +307,153 @@ export const leaveApi = {
     http.get<PageResult<LeaveView>>('/leave-requests/me', { page: 1, size: 50, ...query }),
   toReview: (query: { status?: string; page?: number; size?: number } = {}) =>
     http.get<PageResult<LeaveView>>('/leave-requests/to-review', { page: 1, size: 50, ...query }),
+  all: (
+    query: { status?: string; classId?: number | null; courseId?: number | null; semesterId?: number | null; page?: number; size?: number } = {},
+  ) => http.get<PageResult<LeaveView>>('/leave-requests/all', { page: 1, size: 20, ...query }),
   detail: (id: number) => http.get<LeaveView>(`/leave-requests/${id}`),
   approve: (id: number, comment?: string) =>
     http.post<LeaveView>(`/leave-requests/${id}/approve`, comment ? { comment } : {}),
   reject: (id: number, comment?: string) =>
     http.post<LeaveView>(`/leave-requests/${id}/reject`, comment ? { comment } : {}),
   cancel: (id: number) => http.post<LeaveView>(`/leave-requests/${id}/cancel`),
+  revoke: (id: number, note?: string) =>
+    http.post<LeaveView>(`/leave-requests/${id}/revoke`, note ? { note } : {}),
+  counselors: () => http.get<ClassCounselorView[]>('/leave-requests/counselors'),
+  setCounselors: (classId: number, counselorIds: number[]) =>
+    http.put<ClassCounselorView>(`/leave-requests/counselors/${classId}`, { counselorIds }),
+}
+
+export const gradeApi = {
+  me: () => http.get<TranscriptView>('/grades/me'),
+  rules: () => http.get<GradeRuleView[]>('/grades/rules'),
+  gradeBook: (courseId: number) => http.get<GradeBookView>(`/grades/course/${courseId}`),
+  save: (courseId: number, items: { studentId: number; score: number | null; remark: string | null }[]) =>
+    http.put<GradeBookView>(`/grades/course/${courseId}`, { items }),
+  publish: (courseId: number) => http.post<GradeBookView>(`/grades/course/${courseId}/publish`),
+}
+
+export const evaluationApi = {
+  tasks: () => http.get<EvaluationTaskView[]>('/evaluations/tasks'),
+  submit: (body: {
+    courseId: number
+    teacherId: number
+    scoreTeaching: number
+    scoreContent: number
+    scoreInteraction: number
+    scoreWorkload: number
+    comment: string | null
+    anonymous: boolean
+  }) => http.post<EvaluationTaskView>('/evaluations', body),
+  courseSummary: (courseId: number) => http.get<EvaluationCourseSummary>(`/evaluations/course/${courseId}`),
+  mine: () => http.get<EvaluationOverview>('/evaluations/me'),
+}
+
+export const feedbackApi = {
+  create: (body: { category: string; title: string; content: string; anonymous: boolean }) =>
+    http.post<FeedbackView>('/feedbacks', body),
+  mine: (query: { status?: string; category?: string; keyword?: string; page?: number; size?: number } = {}) =>
+    http.get<PageResult<FeedbackView>>('/feedbacks/me', { page: 1, size: 20, ...query }),
+  list: (query: { status?: string; category?: string; keyword?: string; page?: number; size?: number } = {}) =>
+    http.get<PageResult<FeedbackView>>('/feedbacks', { page: 1, size: 20, ...query }),
+  reply: (id: number, body: { status: string; reply: string | null }) =>
+    http.post<FeedbackView>(`/feedbacks/${id}/reply`, body),
+}
+
+export const classroomApi = {
+  free: (query: {
+    date?: string
+    startPeriod?: number
+    endPeriod?: number
+    minCapacity?: number
+    building?: string
+    roomType?: string
+  } = {}) => http.get<FreeSlotView>('/classrooms/free', query),
+  week: (query: {
+    from?: string
+    startPeriod?: number
+    endPeriod?: number
+    minCapacity?: number
+    building?: string
+    roomType?: string
+  } = {}) => http.get<FreeWeekView>('/classrooms/week', query),
+}
+
+export const attendanceApi = {
+  classes: () => http.get<ClassOptionView[]>('/attendance/classes'),
+  timetable: (classId: number, semesterId?: number | null) =>
+    http.get<ClassTimetableView>(`/attendance/classes/${classId}/timetable`, { semesterId }),
+  stats: (classId: number, query: { semesterId?: number | null; courseId?: number | null } = {}) =>
+    http.get<ClassAttendanceStatsView>(`/attendance/classes/${classId}/stats`, query),
+  sessions: (classId: number, query: { courseId?: number | null; from?: string; to?: string } = {}) =>
+    http.get<AttendanceSessionView[]>('/attendance/sessions', { classId, ...query }),
+  createSession: (body: {
+    courseId: number
+    scheduleId?: number | null
+    classId: number
+    sessionDate: string
+    startPeriod: number
+    endPeriod?: number | null
+    note?: string | null
+  }) => http.post<AttendanceSessionDetailView>('/attendance/sessions', body),
+  session: (id: number) => http.get<AttendanceSessionDetailView>(`/attendance/sessions/${id}`),
+  save: (id: number, items: { studentId: number; status: string; remark: string | null }[]) =>
+    http.put<AttendanceSessionDetailView>(`/attendance/sessions/${id}`, { items }),
+  finalize: (id: number) => http.post<AttendanceSessionDetailView>(`/attendance/sessions/${id}/finalize`),
+  syncRoster: (id: number) => http.post<AttendanceSessionDetailView>(`/attendance/sessions/${id}/sync-roster`),
+  myAttendance: (status?: string) => http.get<MyAttendanceView[]>('/attendance/me', status ? { status } : undefined),
+  submitAppeal: (body: { recordId: number; reason: string; targetStatus?: string }) =>
+    http.post<AppealView>('/attendance/appeals', body),
+  myAppeals: () => http.get<AppealView[]>('/attendance/appeals/me'),
+  appeals: (status?: string) => http.get<AppealView[]>('/attendance/appeals', status ? { status } : undefined),
+  decideAppeal: (id: number, body: { approve: boolean; targetStatus?: string; comment: string | null }) =>
+    http.post<AppealView>(`/attendance/appeals/${id}/decide`, body),
+}
+
+export const notificationApi = {
+  list: (query: { unreadOnly?: boolean; category?: string; page?: number; size?: number } = {}) =>
+    http.get<PageResult<NotificationView>>('/notifications', { page: 1, size: 20, ...query }),
+  /** 未读且要求弹窗的官方公告 */
+  popups: () => http.get<NotificationView[]>('/notifications/popups'),
+  unreadCount: () => http.get<number>('/notifications/unread-count'),
+  markRead: (id: number) => http.post<void>(`/notifications/${id}/read`),
+  markAllRead: () => http.post<number>('/notifications/read-all'),
+}
+
+export const roomBookingApi = {
+  create: (body: {
+    roomId: number
+    bookingDate: string
+    startPeriod: number
+    endPeriod: number
+    purpose: string
+    attendees?: number | null
+    contact?: string | null
+  }) => http.post<RoomBookingView>('/room-bookings', body),
+  mine: (query: { status?: string; page?: number; size?: number } = {}) =>
+    http.get<PageResult<RoomBookingView>>('/room-bookings/me', { page: 1, size: 20, ...query }),
+  review: (query: { status?: string; page?: number; size?: number } = {}) =>
+    http.get<PageResult<RoomBookingView>>('/room-bookings', { page: 1, size: 20, ...query }),
+  decide: (id: number, body: { approve: boolean; comment: string | null }) =>
+    http.post<RoomBookingView>(`/room-bookings/${id}/decide`, body),
+  cancel: (id: number) => http.post<RoomBookingView>(`/room-bookings/${id}/cancel`),
+}
+
+export const profileApi = {
+  me: () => http.get<ProfileView>('/profile'),
+  uploadAvatar: (file: File) => {
+    const form = new FormData()
+    form.append('file', file, file.name)
+    return http.upload<ProfileView>('/profile/avatar', form)
+  },
+  removeAvatar: () => http.del<ProfileView>('/profile/avatar'),
+  posts: (query: { page?: number; size?: number } = {}) =>
+    http.get<PageResult<ProfilePostView>>('/profile/posts', { page: 1, size: 10, ...query }),
+}
+
+export const settingApi = {
+  list: () => http.get<SettingView[]>('/settings'),
+  update: (key: string, value: string) => http.put<SettingView>(`/settings/${key}`, { value }),
+  leaveFlow: () => http.get<LeaveFlowView>('/settings/leave-flow'),
 }
 
 export const userApi = {

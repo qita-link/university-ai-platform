@@ -31,6 +31,7 @@ withDefaults(
 
 <style scoped>
 .ui-btn {
+  white-space: nowrap;
   position: relative;
   display: inline-flex;
   align-items: center;

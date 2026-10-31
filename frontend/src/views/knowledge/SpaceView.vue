@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { knowledgeApi } from '@/api/endpoints'
 import type { DocumentSummaryView, SpaceView, UploadBatchView } from '@/api/types'
@@ -38,6 +38,14 @@ const total = ref(0)
 const pages = ref(0)
 const page = ref(1)
 const keyword = ref('')
+/** 手机端检索默认收起，只留放大镜 */
+const searchOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+
+function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (searchOpen.value) nextTick(() => searchInput.value?.focus())
+}
 const docsLoading = ref(false)
 const docsError = ref<string | null>(null)
 
@@ -209,6 +217,20 @@ async function onFilesPicked(e: Event) {
             {{ space.categoryName || '未分类' }}<span class="head__latin latin-italic">Space</span>
           </p>
           <div class="head__actions">
+            <button
+              type="button"
+              class="search-toggle"
+              :class="{ 'is-open': searchOpen }"
+              :aria-expanded="searchOpen"
+              aria-label="搜索文档"
+              @click="toggleSearch"
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <path d="M16 16l4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              </svg>
+              <span v-if="keyword" class="search-toggle__dot" aria-hidden="true" />
+            </button>
             <UiButton v-if="canManageMembers" size="sm" @click="membersOpen = true">成员</UiButton>
             <UiButton v-if="canWrite" size="sm" :loading="uploading" @click="pickFiles">批量上传 .md</UiButton>
             <UiButton v-if="canWrite" size="sm" variant="primary" @click="openNew">新建文档</UiButton>
@@ -253,10 +275,16 @@ async function onFilesPicked(e: Event) {
         </ul>
       </section>
 
-      <form class="search" role="search" @submit.prevent="search">
+      <form
+        class="search search--collapsible"
+        :class="{ 'is-open': searchOpen }"
+        role="search"
+        @submit.prevent="search"
+      >
         <label class="search__label" for="doc-search">检索</label>
         <input
           id="doc-search"
+          ref="searchInput"
           v-model="keyword"
           class="search__input"
           type="search"
@@ -619,6 +647,34 @@ async function onFilesPicked(e: Event) {
 }
 
 @media (max-width: 640px) {
+  /* 头部：小标会挤成竖排，说明文字占掉半屏，手机上都不显示 */
+  .head__eyebrow,
+  .head__lede {
+    display: none;
+  }
+
+  .head__row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .head__actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .head__title {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+
+  .head__meta {
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 11px;
+  }
+
   .doc-row {
     grid-template-columns: 28px minmax(0, 1fr);
   }

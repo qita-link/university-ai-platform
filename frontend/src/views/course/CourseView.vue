@@ -375,8 +375,8 @@ function thisWeek() {
 <template>
   <div class="courses">
     <UiPageHeader
-      label="课程"
-      latin="Ledger"
+      label="课表"
+      latin="Timetable"
       title="课表"
       lede="按周查看上课时间与地点。选课目录里的名额由后端条件更新保证不超卖，冲突与重复选课会在提交时拦下。"
     >
@@ -1151,6 +1151,94 @@ function thisWeek() {
     grid-auto-flow: column;
     align-items: center;
     gap: var(--s-3);
+  }
+}
+
+@media (max-width: 640px) {
+  /* 手机上先看到课表：收起说明文字，周次改为单行横滑 */
+  .week__note {
+    margin: 2px 0 0;
+    font-size: 0;
+  }
+
+  .week__note-dim {
+    display: none;
+  }
+
+  .week__mobile-only {
+    font-size: 11px;
+  }
+
+  .weeks__label {
+    display: none;
+  }
+
+  .bar__semester :deep(.ui-select__label) {
+    display: none;
+  }
+
+  .week__nav {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .weeks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .weeks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .weeks__chip {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 手机上先看到课表：收起说明文字，周次改为单行横滑 */
+  .week__note {
+    margin: 2px 0 0;
+    font-size: 0;
+  }
+
+  .week__note-dim {
+    display: none;
+  }
+
+  .week__mobile-only {
+    font-size: 11px;
+  }
+
+  .weeks__label {
+    display: none;
+  }
+
+  .bar__semester :deep(.ui-select__label) {
+    display: none;
+  }
+
+  .week__nav {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .weeks {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .weeks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .weeks__chip {
+    flex: 0 0 auto;
   }
 }
 </style>

@@ -31,14 +31,14 @@ defineExpose({ focus: () => el.value?.focus() })
 
 <template>
   <div class="composer" :class="{ 'is-over': over }">
-    <label for="composer-input" class="visually-hidden">输入问题</label>
+    <label for="composer-input" class="visually-hidden">输入问题或要办的事</label>
     <textarea
       id="composer-input"
       ref="el"
       v-model="text"
       class="composer__input"
       rows="1"
-      placeholder="向知识库提问……"
+      placeholder="查点什么，或直接说要办的事……"
       :aria-describedby="over ? 'composer-count' : undefined"
       @keydown="onKeydown"
     />
@@ -48,7 +48,7 @@ defineExpose({ focus: () => el.value?.focus() })
         {{ text.length }} / {{ MAX }}
       </span>
       <button type="button" class="composer__send" :disabled="!canSend" @click="emit('send')">
-        {{ busy ? '撰写中' : '提问' }}
+        {{ busy ? '处理中' : '发送' }}
         <span aria-hidden="true" class="composer__arrow">→</span>
       </button>
     </div>

@@ -22,6 +22,8 @@ public class SysUser extends AuditableEntity {
     private String displayName;
     private String email;
     private String phone;
+    /** 头像版本：上传/删除头像后自增，前端用它做缓存失效 */
+    private Integer avatarVersion;
     private Long orgUnitId;
     private UserStatus status;
     /** 递增后，所有已签发令牌立即失效 */

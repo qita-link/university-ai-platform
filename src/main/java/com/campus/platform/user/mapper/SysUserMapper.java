@@ -161,7 +161,49 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             """)
     List<UserRoleCode> selectRoleCodesOfUsers(@Param("userIds") Collection<Long> userIds);
 
+    /** 拥有某权限点的启用用户（用于把通知投给「能审批的人」，如教室借用审批） */
+    @Select("""
+            SELECT DISTINCT u.id
+              FROM sys_user u
+              JOIN sys_user_role ur ON ur.user_id = u.id
+              JOIN sys_role_permission rp ON rp.role_id = ur.role_id
+              JOIN sys_permission p ON p.id = rp.permission_id
+             WHERE p.code = #{permission} AND u.status = 'ACTIVE'
+            """)
+    List<Long> selectActiveUserIdsByPermission(@Param("permission") String permission);
+
+    /** 一批用户的头像版本（0 表示没有头像），用于列表里渲染头像 */
+    @Select("""
+            <script>
+            SELECT id, avatar_version FROM sys_user WHERE id IN
+            <foreach collection="userIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </script>
+            """)
+    List<AvatarVersionRow> selectAvatarVersions(@Param("userIds") Collection<Long> userIds);
+
     /** 用户 ID 与角色编码对 */
     record UserRoleCode(Long userId, String roleCode) {
+    }
+
+    /** 头像版本投影 */
+    class AvatarVersionRow {
+        private Long id;
+        private Integer avatarVersion;
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+
+        public Integer getAvatarVersion() {
+            return avatarVersion;
+        }
+
+        public void setAvatarVersion(Integer avatarVersion) {
+            this.avatarVersion = avatarVersion;
+        }
     }
 }
