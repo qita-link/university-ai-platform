@@ -16,8 +16,10 @@ app.use(pinia)
 const auth = useAuthStore(pinia)
 configureHttp({
   getToken: () => auth.token,
+  getRefreshToken: () => auth.refreshToken,
+  onRefreshed: (result) => auth.applyLogin(result),
   onUnauthorized: () => {
-    // 令牌失效（过期、被登出或改密）：清空本地登录态并回到登录页，保留当前位置以便登录后返回
+    // 刷新也失败（令牌过期、被登出或改密）：清空本地登录态并回到登录页，保留当前位置以便登录后返回
     if (!auth.token) return
     auth.clear()
     const current = router.currentRoute.value

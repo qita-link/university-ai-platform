@@ -8,6 +8,7 @@ import com.campus.platform.auth.dto.CurrentUserResponse;
 import com.campus.platform.auth.dto.LoginResponse;
 import com.campus.platform.common.exception.BusinessException;
 import com.campus.platform.common.exception.ErrorCode;
+import com.campus.platform.common.metrics.PlatformMetrics;
 import com.campus.platform.common.web.ClientInfo;
 import com.campus.platform.security.AuthenticatedUser;
 import com.campus.platform.security.jwt.JwtTokenService;
@@ -16,6 +17,8 @@ import com.campus.platform.user.entity.UserStatus;
 import com.campus.platform.user.mapper.SysUserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -55,12 +58,15 @@ public class AuthService {
     private final AuditService auditService;
     private final TransactionTemplate tx;
     private final Clock clock;
+    private final JwtDecoder jwtDecoder;
+    private final PlatformMetrics metrics;
     /** 用户不存在时用于等时比较的哈希 */
     private final String dummyHash;
 
     public AuthService(SysUserMapper userMapper, PasswordEncoder passwordEncoder, JwtTokenService tokenService,
                        LoginRateLimiter rateLimiter, PasswordPolicy passwordPolicy, LoginProperties loginProperties,
-                       AuditService auditService, TransactionTemplate tx, Clock clock) {
+                       AuditService auditService, TransactionTemplate tx, Clock clock,
+                       JwtDecoder jwtDecoder, PlatformMetrics metrics) {
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
@@ -70,6 +76,8 @@ public class AuthService {
         this.auditService = auditService;
         this.tx = tx;
         this.clock = clock;
+        this.jwtDecoder = jwtDecoder;
+        this.metrics = metrics;
         this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -85,6 +93,7 @@ public class AuthService {
         if (user == null) {
             passwordEncoder.matches(password, dummyHash);
             auditLoginFailure(null, username, ErrorCode.AUTH_BAD_CREDENTIALS, "USER_NOT_FOUND");
+            metrics.loginFailure("USER_NOT_FOUND");
             throw new BusinessException(ErrorCode.AUTH_BAD_CREDENTIALS);
         }
 
@@ -92,6 +101,7 @@ public class AuthService {
         if (isTemporarilyLocked(user, now)) {
             passwordEncoder.matches(password, dummyHash);
             auditLoginFailure(user.getId(), user.getUsername(), ErrorCode.AUTH_ACCOUNT_LOCKED, "TEMPORARILY_LOCKED");
+            metrics.loginFailure("TEMPORARILY_LOCKED");
             throw lockedException(user.getLockedUntil(), now);
         }
 
@@ -118,10 +128,12 @@ public class AuthService {
         }
         if (fresh.getStatus() == UserStatus.DISABLED) {
             auditLoginFailure(fresh.getId(), fresh.getUsername(), ErrorCode.AUTH_ACCOUNT_DISABLED, "DISABLED");
+            metrics.loginFailure("DISABLED");
             throw new BusinessException(ErrorCode.AUTH_ACCOUNT_DISABLED);
         }
         if (fresh.getStatus() == UserStatus.LOCKED) {
             auditLoginFailure(fresh.getId(), fresh.getUsername(), ErrorCode.AUTH_ACCOUNT_LOCKED, "ADMIN_LOCKED");
+            metrics.loginFailure("ADMIN_LOCKED");
             throw new BusinessException(ErrorCode.AUTH_ACCOUNT_LOCKED, "账号已被管理员锁定，请联系管理员");
         }
 
@@ -156,7 +168,9 @@ public class AuthService {
         });
         auditLoginFailure(userId, username, ErrorCode.AUTH_BAD_CREDENTIALS, "BAD_PASSWORD",
                 "failedCount", outcome.failedCount());
+        metrics.loginFailure("BAD_PASSWORD");
         if (outcome.lockedNow()) {
+            metrics.loginLocked();
             log.warn("账号连续登录失败已临时锁定: userId={}, minutes={}", userId, lockDuration.toMinutes());
             auditService.record(AuditEvent.builder(MODULE, "ACCOUNT_TEMP_LOCKED")
                     .actor(userId, username)
@@ -227,14 +241,55 @@ public class AuthService {
     // ======================================================================
 
     private LoginResponse issue(SysUser user) {
-        JwtTokenService.IssuedToken token = tokenService.issueAccessToken(user.getId(), user.getUsername(),
+        JwtTokenService.IssuedTokens tokens = tokenService.issueTokens(user.getId(), user.getUsername(),
                 user.getTokenVersion());
         CurrentUserResponse me = new CurrentUserResponse(user.getId(), user.getUsername(), user.getDisplayName(),
                 user.getAvatarVersion() == null ? 0 : user.getAvatarVersion(), user.getOrgUnitId(),
                 new TreeSet<>(userMapper.selectRoleCodes(user.getId())),
                 new TreeSet<>(userMapper.selectPermissionCodes(user.getId())));
-        return new LoginResponse(token.accessToken(), LoginResponse.BEARER, token.expiresInSeconds(),
-                token.expiresAt(), me);
+        return new LoginResponse(tokens.access().accessToken(), tokens.refresh().accessToken(), LoginResponse.BEARER,
+                tokens.access().expiresInSeconds(), tokens.access().expiresAt(), tokens.refresh().expiresAt(), me);
+    }
+
+    // ======================================================================
+    // 刷新令牌
+    // ======================================================================
+
+    /**
+     * 用刷新令牌换一对新令牌（访问令牌 + 轮换后的刷新令牌）。
+     * <p>
+     * 任何失败都统一返回 401，不区分“签名不对 / 类型不对 / 用户不存在 / 版本过期”，避免被用来探测账号。
+     * 账号状态与 token_version 在这里同样复核：退出登录、改密、停用都会让刷新令牌立即失效。
+     */
+    public LoginResponse refresh(String rawRefreshToken) {
+        if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Jwt jwt;
+        try {
+            jwt = jwtDecoder.decode(rawRefreshToken);
+        } catch (RuntimeException ex) {
+            // 过期、签名错误、格式错误都走这里
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!JwtTokenService.TOKEN_TYPE_REFRESH.equals(jwt.getClaimAsString(JwtTokenService.CLAIM_TOKEN_TYPE))) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        long userId;
+        try {
+            userId = Long.parseLong(jwt.getSubject());
+        } catch (NumberFormatException | NullPointerException ex) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        SysUser user = userMapper.selectById(userId);
+        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        Object ver = jwt.getClaim(JwtTokenService.CLAIM_TOKEN_VERSION);
+        if (!(ver instanceof Number n) || !java.util.Objects.equals(n.intValue(), user.getTokenVersion())) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        return issue(user);
     }
 
     private static boolean isTemporarilyLocked(SysUser user, LocalDateTime now) {

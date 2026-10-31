@@ -44,9 +44,12 @@ export interface CurrentUser {
 
 export interface LoginResult {
   accessToken: string
+  /** 访问令牌过期后用它换新令牌；只存本地，不放进请求头 */
+  refreshToken: string
   tokenType: 'Bearer'
   expiresIn: number
   expiresAt: string
+  refreshExpiresAt: string
   user: CurrentUser
 }
 

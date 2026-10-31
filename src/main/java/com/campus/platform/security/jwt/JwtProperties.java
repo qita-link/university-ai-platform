@@ -8,12 +8,13 @@ import java.time.Duration;
 /**
  * JWT 配置（前缀 app.security.jwt）。
  *
- * @param secret         HS256 签名密钥，至少 32 字节；必须通过环境变量 APP_JWT_SECRET 提供，禁止写入代码或 Git
- * @param issuer         签发者
- * @param accessTokenTtl 访问令牌有效期
+ * @param secret          HS256 签名密钥，至少 32 字节；必须通过环境变量 APP_JWT_SECRET 提供，禁止写入代码或 Git
+ * @param issuer          签发者
+ * @param accessTokenTtl  访问令牌有效期
+ * @param refreshTokenTtl 刷新令牌有效期，必须长于访问令牌
  */
 @ConfigurationProperties(prefix = "app.security.jwt")
-public record JwtProperties(String secret, String issuer, Duration accessTokenTtl) {
+public record JwtProperties(String secret, String issuer, Duration accessTokenTtl, Duration refreshTokenTtl) {
 
     public static final int MIN_SECRET_BYTES = 32;
 
@@ -31,11 +32,18 @@ public record JwtProperties(String secret, String issuer, Duration accessTokenTt
         if (accessTokenTtl == null || accessTokenTtl.isNegative() || accessTokenTtl.isZero()) {
             accessTokenTtl = Duration.ofHours(2);
         }
+        if (refreshTokenTtl == null || refreshTokenTtl.isNegative() || refreshTokenTtl.isZero()) {
+            refreshTokenTtl = Duration.ofDays(14);
+        }
+        if (refreshTokenTtl.compareTo(accessTokenTtl) <= 0) {
+            throw new IllegalStateException("刷新令牌有效期必须长于访问令牌有效期");
+        }
     }
 
     /** 避免密钥出现在日志或调试输出中。 */
     @Override
     public String toString() {
-        return "JwtProperties[secret=****, issuer=" + issuer + ", accessTokenTtl=" + accessTokenTtl + "]";
+        return "JwtProperties[secret=****, issuer=" + issuer + ", accessTokenTtl=" + accessTokenTtl
+                + ", refreshTokenTtl=" + refreshTokenTtl + "]";
     }
 }

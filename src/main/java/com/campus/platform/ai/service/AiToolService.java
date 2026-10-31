@@ -9,6 +9,7 @@ import com.campus.platform.ai.dto.AiToolCallRequest;
 import com.campus.platform.ai.dto.AiToolCallView;
 import com.campus.platform.ai.dto.AiToolView;
 import com.campus.platform.ai.entity.AiToolCall;
+import com.campus.platform.common.metrics.PlatformMetrics;
 import com.campus.platform.ai.entity.AiToolCallStatus;
 import com.campus.platform.ai.mapper.AiToolCallMapper;
 import com.campus.platform.ai.tool.AiTool;
@@ -63,15 +64,18 @@ public class AiToolService {
     private final AiToolProperties properties;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final PlatformMetrics metrics;
 
     public AiToolService(AiToolRegistry registry, AiToolCallMapper callMapper, AuditService auditService,
-                         AiToolProperties properties, ObjectMapper objectMapper, Clock clock) {
+                         AiToolProperties properties, ObjectMapper objectMapper, Clock clock,
+                         PlatformMetrics metrics) {
         this.registry = registry;
         this.callMapper = callMapper;
         this.auditService = auditService;
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.metrics = metrics;
     }
 
     // ------------------------------------------------------------------ 目录
@@ -198,6 +202,7 @@ public class AiToolService {
             String message = failure != null ? failure.getMessage() : "工具执行失败";
             callMapper.finish(id, AiToolCallStatus.FAILED, null, code,
                     truncate(message, MAX_ERROR), toInt(latency), LocalDateTime.now(clock));
+            metrics.aiToolFailed();
         }
         AiToolCall updated = callMapper.selectById(id);
         audit(updated, "AI_TOOL_CONFIRM", true, updated == null ? null : updated.getErrorCode());

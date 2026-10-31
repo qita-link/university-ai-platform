@@ -13,6 +13,8 @@ const STORAGE_KEY = 'campus.session'
 interface StoredSession {
   token: string
   expiresAt: string
+  refreshToken: string
+  refreshExpiresAt: string
   user: CurrentUser
 }
 
@@ -21,7 +23,14 @@ function readStored(): StoredSession | null {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const s = JSON.parse(raw) as StoredSession
-    if (!s.token || !(parseServerTime(s.expiresAt) > Date.now())) {
+    if (!s.token || !s.user) {
+      sessionStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+    // 访问令牌过期但刷新令牌还有效时保留会话：首个 401 会自动刷新，不用重新登录
+    const accessAlive = parseServerTime(s.expiresAt) > Date.now()
+    const refreshAlive = !!s.refreshToken && parseServerTime(s.refreshExpiresAt) > Date.now()
+    if (!accessAlive && !refreshAlive) {
       sessionStorage.removeItem(STORAGE_KEY)
       return null
     }
@@ -36,6 +45,8 @@ export const useAuthStore = defineStore('auth', () => {
   const initial = readStored()
   const token = ref<string | null>(initial?.token ?? null)
   const expiresAt = ref<string | null>(initial?.expiresAt ?? null)
+  const refreshToken = ref<string | null>(initial?.refreshToken ?? null)
+  const refreshExpiresAt = ref<string | null>(initial?.refreshExpiresAt ?? null)
   const user = ref<CurrentUser | null>(initial?.user ?? null)
   /** 本标签页是否已经用 /auth/me 校验过一次 */
   const verified = ref(false)
@@ -45,7 +56,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   function persist() {
     if (token.value && user.value && expiresAt.value) {
-      const s: StoredSession = { token: token.value, expiresAt: expiresAt.value, user: user.value }
+      const s: StoredSession = {
+        token: token.value,
+        expiresAt: expiresAt.value,
+        refreshToken: refreshToken.value ?? '',
+        refreshExpiresAt: refreshExpiresAt.value ?? '',
+        user: user.value,
+      }
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s))
     } else {
       sessionStorage.removeItem(STORAGE_KEY)
@@ -55,6 +72,8 @@ export const useAuthStore = defineStore('auth', () => {
   function applyLogin(result: LoginResult) {
     token.value = result.accessToken
     expiresAt.value = result.expiresAt
+    refreshToken.value = result.refreshToken
+    refreshExpiresAt.value = result.refreshExpiresAt
     user.value = result.user
     verified.value = true
     persist()
@@ -75,6 +94,8 @@ export const useAuthStore = defineStore('auth', () => {
   function clear() {
     token.value = null
     expiresAt.value = null
+    refreshToken.value = null
+    refreshExpiresAt.value = null
     user.value = null
     verified.value = false
     sessionStorage.removeItem(STORAGE_KEY)
@@ -107,5 +128,20 @@ export const useAuthStore = defineStore('auth', () => {
     return perms.some((p) => permissionSet.value.has(p))
   }
 
-  return { token, expiresAt, user, verified, isAuthenticated, login, refreshMe, logout, changePassword, clear, can }
+  return {
+    token,
+    expiresAt,
+    refreshToken,
+    refreshExpiresAt,
+    user,
+    verified,
+    isAuthenticated,
+    login,
+    refreshMe,
+    applyLogin,
+    logout,
+    changePassword,
+    clear,
+    can,
+  }
 })

@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -42,6 +43,7 @@ public class SecurityConfig {
     /** 无需登录即可访问的接口 */
     static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
             "/api/v1/system/info",
             "/actuator/health",
             "/error"
@@ -75,6 +77,10 @@ public class SecurityConfig {
                                         .ReferrerPolicy.NO_REFERRER)))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                    // 指标端点只允许本机（Prometheus 与后端同机部署）访问，公网一律拒绝
+                    auth.requestMatchers("/actuator/prometheus")
+                            .access((authentication, context) -> new AuthorizationDecision(
+                                    isLoopback(context.getRequest().getRemoteAddr())));
                     auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll();
                     if (apiDocsEnabled) {
                         auth.requestMatchers(API_DOC_ENDPOINTS).permitAll();
@@ -89,6 +95,15 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDeniedHandler));
         return http.build();
+    }
+
+    /**
+     * 是否为回环地址。用于把 /actuator/prometheus 限制为同机抓取。
+     * 注意：若前面有反向代理，这里拿到的是代理的地址；因此 Nginx 侧也显式拒绝该路径（见部署文档）。
+     */
+    private static boolean isLoopback(String remoteAddr) {
+        return "127.0.0.1".equals(remoteAddr) || "::1".equals(remoteAddr)
+                || "0:0:0:0:0:0:0:1".equals(remoteAddr);
     }
 
     /**

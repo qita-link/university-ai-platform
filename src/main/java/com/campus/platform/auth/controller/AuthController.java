@@ -4,6 +4,7 @@ import com.campus.platform.auth.dto.ChangePasswordRequest;
 import com.campus.platform.auth.dto.CurrentUserResponse;
 import com.campus.platform.auth.dto.LoginRequest;
 import com.campus.platform.auth.dto.LoginResponse;
+import com.campus.platform.auth.dto.RefreshTokenRequest;
 import com.campus.platform.auth.service.AuthService;
 import com.campus.platform.profile.service.ProfileService;
 import com.campus.platform.common.api.ApiResponse;
@@ -47,6 +48,16 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse result = authService.login(request.username(), request.password());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.ok(result));
+    }
+
+    @Operation(summary = "刷新令牌", description = """
+            用 refreshToken 换取新的访问令牌与刷新令牌（轮换）。无需 Authorization 头。
+            刷新令牌无效、过期，或账号被停用/改密/退出导致 token_version 变化时，统一返回 401。""")
+    @SecurityRequirements
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<LoginResponse>> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        LoginResponse result = authService.refresh(request.refreshToken());
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.ok(result));
     }
 
