@@ -4,6 +4,7 @@
  *
  * 用法：
  *   node scripts/load-test.mjs <baseUrl> <username> <password> [path] [并发数] [持续秒数]
+ *   node scripts/load-test.mjs <baseUrl> - - [path] [并发数] [持续秒数]     # 免登录（测公开接口）
  * 示例：
  *   node scripts/load-test.mjs http://127.0.0.1:8080 20260001 'Campus@2026!Stu' /api/v1/timetables/me 200 15
  *
@@ -24,16 +25,20 @@ if (!baseUrl || !username || !password) {
 const concurrency = Number(concArg)
 const seconds = Number(secArg)
 
-const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username, password }),
-})
-const loginBody = await loginRes.json().catch(() => null)
-const token = loginBody?.data?.accessToken
-if (!token) {
-  console.error('登录失败:', JSON.stringify(loginBody).slice(0, 200))
-  process.exit(1)
+const anonymous = username === '-'
+let token = ''
+if (!anonymous) {
+  const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  const loginBody = await loginRes.json().catch(() => null)
+  token = loginBody?.data?.accessToken ?? ''
+  if (!token) {
+    console.error('登录失败:', JSON.stringify(loginBody).slice(0, 200))
+    process.exit(1)
+  }
 }
 
 const latencies = []
@@ -47,7 +52,7 @@ async function worker() {
     const start = performance.now()
     try {
       const res = await fetch(`${baseUrl}${path}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       await res.arrayBuffer()
       const cost = performance.now() - start
