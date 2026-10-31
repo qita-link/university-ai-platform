@@ -9,6 +9,7 @@ import com.campus.platform.common.api.PageResult;
 import com.campus.platform.common.exception.BusinessException;
 import com.campus.platform.common.exception.ErrorCode;
 import com.campus.platform.knowledge.config.KnowledgeProperties;
+import com.campus.platform.knowledge.parser.DocumentTextExtractor;
 import com.campus.platform.knowledge.dto.ChunkView;
 import com.campus.platform.knowledge.dto.DocumentCreateRequest;
 import com.campus.platform.knowledge.dto.DocumentDetailView;
@@ -80,12 +81,14 @@ public class KnowledgeDocumentService {
     private final TransactionTemplate tx;
     private final AuditService auditService;
     private final Clock clock;
+    private final DocumentTextExtractor extractor;
 
     public KnowledgeDocumentService(KbDocumentMapper documentMapper, KbDocumentVersionMapper versionMapper,
                                     KbChunkMapper chunkMapper, KbUploadBatchMapper batchMapper,
                                     SysUserMapper userMapper, KnowledgeAccessService accessService,
                                     MarkdownChunker chunker, KnowledgeProperties properties,
-                                    TransactionTemplate tx, AuditService auditService, Clock clock) {
+                                    TransactionTemplate tx, AuditService auditService, Clock clock,
+                                    DocumentTextExtractor extractor) {
         this.documentMapper = documentMapper;
         this.versionMapper = versionMapper;
         this.chunkMapper = chunkMapper;
@@ -97,6 +100,7 @@ public class KnowledgeDocumentService {
         this.tx = tx;
         this.auditService = auditService;
         this.clock = clock;
+        this.extractor = extractor;
     }
 
     // ==================================================================
@@ -408,22 +412,26 @@ public class KnowledgeDocumentService {
         if (file.isEmpty()) {
             throw new BusinessException(ErrorCode.KB_DOCUMENT_EMPTY, "文件为空");
         }
-        if (filename == null || !filename.toLowerCase().endsWith(".md")) {
-            throw new BusinessException(ErrorCode.KB_DOCUMENT_INVALID_FILE, "只支持 .md 文件");
+        if (filename == null || !DocumentTextExtractor.isSupported(filename)) {
+            throw new BusinessException(ErrorCode.KB_DOCUMENT_INVALID_FILE,
+                    "只支持 .md / .txt / .docx / .pdf 文件");
         }
         if (file.getSize() > properties.maxFileBytes()) {
             throw new BusinessException(ErrorCode.KB_DOCUMENT_INVALID_FILE, "文件超过大小限制");
         }
         String content;
+        byte[] bytes;
         try {
-            content = new String(file.getBytes(), StandardCharsets.UTF_8);
+            bytes = file.getBytes();
         } catch (IOException ex) {
             throw new BusinessException(ErrorCode.KB_DOCUMENT_INVALID_FILE, "文件读取失败", ex);
         }
+        // .md/.txt 直接用原文；.docx/.pdf 先转成纯文本，之后走同一套分块与索引
+        content = extractor.extract(filename, bytes).text();
         content = requireContent(content);
         String parsedTitle = MarkdownParser.parse(content).title();
         String title = parsedTitle == null || parsedTitle.isBlank()
-                ? filename.substring(0, filename.length() - 3) : parsedTitle;
+                ? DocumentTextExtractor.baseName(filename) : parsedTitle;
         KbDocument doc = createDocument(user, space, truncate(title, 255), content, filename,
                 DocumentSource.UPLOAD, batchId, null, "批量上传", null, null);
         audit("KB_DOCUMENT_UPLOAD", doc.getId(), "spaceId", space.getId(), "filename", filename);

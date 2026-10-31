@@ -232,13 +232,13 @@ async function onFilesPicked(e: Event) {
               <span v-if="keyword" class="search-toggle__dot" aria-hidden="true" />
             </button>
             <UiButton v-if="canManageMembers" size="sm" @click="membersOpen = true">成员</UiButton>
-            <UiButton v-if="canWrite" size="sm" :loading="uploading" @click="pickFiles">批量上传 .md</UiButton>
+            <UiButton v-if="canWrite" size="sm" :loading="uploading" @click="pickFiles">上传文档</UiButton>
             <UiButton v-if="canWrite" size="sm" variant="primary" @click="openNew">新建文档</UiButton>
             <input
               ref="fileInput"
               class="visually-hidden"
               type="file"
-              accept=".md,text/markdown"
+              accept=".md,.markdown,.txt,.docx,.pdf"
               multiple
               @change="onFilesPicked"
             />

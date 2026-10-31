@@ -26,6 +26,9 @@
         <springdoc.version>2.8.8</springdoc.version>
         <!-- 自动排课求解器：OR-Tools CP-SAT（Java 8+ 字节码，自带 linux/win/mac x86-64 与 aarch64 原生库） -->
         <ortools.version>9.15.6755</ortools.version>
+        <!-- 文档解析：POI 读 .docx，PDFBox 读 .pdf -->
+        <poi.version>5.2.5</poi.version>
+        <pdfbox.version>2.0.31</pdfbox.version>
     </properties>
 
     <dependencyManagement>
@@ -72,6 +75,18 @@
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!-- 知识库文档解析：Word(.docx) 与 PDF 转纯文本后进入既有分块/检索链路 -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
         </dependency>
 
         <!-- 安全：Spring Security + 资源服务器(JWT 校验，HS256) -->

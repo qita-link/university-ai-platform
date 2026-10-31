@@ -62,7 +62,8 @@ public class KnowledgeDocumentController {
         return ApiResponse.ok(documentService.createOnline(user, spaceId, request));
     }
 
-    @Operation(summary = "批量上传 Markdown", description = "multipart 字段名 files；逐文件处理，允许部分成功")
+    @Operation(summary = "批量上传文档",
+            description = "支持 .md/.txt/.docx/.pdf；multipart 字段名 files；逐文件处理，允许部分成功")
     @PreAuthorize("hasAuthority('kb:document:write')")
     @PostMapping(value = "/spaces/{spaceId}/documents/batch-upload",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
