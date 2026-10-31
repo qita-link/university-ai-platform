@@ -24,6 +24,38 @@ Java 17 · Spring Boot 3.4 · MyBatis-Plus · MySQL 8 · Spring Security(JWT) ·
 | **移动端优先** | 左侧导航在手机收成顶部条与侧滑抽屉，表格容器内横滑，正文第一屏可见 |
 | **两种部署** | Docker 三容器一条命令起全套；或 Debian 12 裸机 + systemd + Nginx + HTTPS |
 
+## 界面预览
+
+以下均为本机实际运行截图（桌面端 1366×860，移动端 780×1688），数据来自本地演示库。
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/ai-chat.png" alt="问答与办事"><br><sub><b>问答与办事</b> —— 先查知识库，无依据自动转工具；写操作出确认单</sub></td>
+    <td width="50%"><img src="docs/images/scheduling.png" alt="自动排课"><br><sub><b>自动排课</b> —— CP-SAT 排出 167/167 次课，评分 76.6，独立复核后发布</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/library.png" alt="知识库书架"><br><sub><b>知识库</b> —— 空间与可见范围分级，文档可被问答直接引用</sub></td>
+    <td width="50%"><img src="docs/images/forum-post.png" alt="论坛抽屉阅读"><br><sub><b>论坛</b> —— 列表点开即抽屉，帖子、评论、回复不跳页</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/notifications.png" alt="站内通知"><br><sub><b>站内通知</b> —— 请假、成绩、借用、申诉、论坛互动汇总到一处</sub></td>
+    <td width="50%"><img src="docs/images/admin-users.png" alt="管理后台"><br><sub><b>管理后台</b> —— 用户、组织、学期、角色权限、审计日志</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="33%" align="center"><img src="docs/images/mobile-ai.png" alt="移动端问答" width="200"></td>
+    <td width="33%" align="center"><img src="docs/images/mobile-course.png" alt="移动端课程" width="200"></td>
+    <td width="33%" align="center"><img src="docs/images/mobile-scheduling.png" alt="移动端排课" width="200"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>移动端问答</sub></td>
+    <td align="center"><sub>移动端课程</sub></td>
+    <td align="center"><sub>移动端排课</sub></td>
+  </tr>
+</table>
+
 ## 功能模块
 
 | 模块 | 能力 |
